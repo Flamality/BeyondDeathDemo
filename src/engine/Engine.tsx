@@ -1,17 +1,16 @@
-import { Environment, PointerLockControls } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-import React from 'react'
 import Baseplate from '../objects/environment/Baseplate'
 import { ACESFilmicToneMapping } from 'three'
-import { Physics } from '@react-three/rapier'
+import { Physics, RigidBody } from '@react-three/rapier'
 import Player from '../player/Player'
 
 function Cube() {
     return (
+        <RigidBody type='dynamic'>
         <mesh>
             <boxGeometry args={[1,1,1]} ></boxGeometry>
-            <meshStandardMaterial color={'red'} />
-        </mesh>
+            <meshStandardMaterial color={'green'} />
+        </mesh></RigidBody>
     )
 }
 
@@ -20,21 +19,20 @@ export default function Engine() {
     <div className='canvas'>
         <Canvas dpr={window.devicePixelRatio} gl={{
         toneMapping: ACESFilmicToneMapping,
-        toneMappingExposure: 1.2
+        toneMappingExposure: 1.25
       }}>
             {/* ENVIRONMENT */}
-            <Environment preset='dawn'  />
-            <color attach="background" args={["#1b242c"]} />
+            {/* <Environment preset='warehouse'  /> */}
+            <ambientLight castShadow intensity={1} />
+            <color attach="background" args={["#0f0b0b"]} />
 
             {/* PLAYER */}
-            <Player />
             
             {/* PHYSICS */}
             <Physics gravity={[0, -9.81, 0]}>
-
+                    <Player />
             {/* OBJECTS */}
-                <Baseplate />
-                <Cube />
+                <RigidBody type='fixed'><Baseplate /></RigidBody>
             </Physics>
         </Canvas>
     </div>
