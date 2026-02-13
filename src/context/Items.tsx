@@ -16,8 +16,8 @@ export interface ItemsList {
 }
 
 export const ItemsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [Items, setItems] = React.useState<ItemsList[]>([{ id: "Box", position: [0, 0, 0], mapId: Math.random().toString() }, {
-        id: "Box2", position: [2, 0, 0], mapId: Math.random().toString()
+    const [Items, setItems] = React.useState<ItemsList[]>([{ id: "Box", position: [0, 2, 0], mapId: Math.random().toString() }, {
+        id: "Box2", position: [2, 2, 0], mapId: Math.random().toString()
     }]);
 const {consoleLog} = useConsole();
     const addItemToMap = (id: string, position: [number, number, number]) => {

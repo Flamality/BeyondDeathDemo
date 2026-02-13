@@ -15,15 +15,18 @@ export default function Player() {
   const moveLeft = useRef(false);
   const moveRight = useRef(false);
   const jump = useRef(false);
+  const crouch = useRef(false);
   const jumpDebounce = useRef(false);
   const onSurface = useRef(false);
 
   useEffect(() => {
     const onKeyDown = (e: any) => {
+      e.preventDefault();
       if (e.code === 'KeyW') moveForward.current = true;
       if (e.code === 'KeyS') moveBackward.current = true;
       if (e.code === 'KeyA') moveLeft.current = true;
       if (e.code === 'KeyD') moveRight.current = true;
+      if (e.code === 'ControlLeft') crouch.current = true;
       if (e.code === 'Space') {
         if (!jumpDebounce.current) {
         jump.current = true;
@@ -36,6 +39,7 @@ export default function Player() {
       if (e.code === 'KeyS') moveBackward.current = false;
       if (e.code === 'KeyA') moveLeft.current = false;
       if (e.code === 'KeyD') moveRight.current = false;
+      if (e.code === 'ControlLeft') crouch.current = false;
       if (e.code === 'Space') jumpDebounce.current = false;
     };
     window.addEventListener('keydown', onKeyDown);
@@ -95,11 +99,11 @@ camera.position.set(pos.x, pos.y + 1, pos.z);
   });
 
   return (
-    <RigidBody ref={rb} colliders={false} enabledRotations={[false, false, false]} position={[0, 5, 0]}>
-      <CapsuleCollider args={[0.5, 0.5]} />
+    <RigidBody ref={rb} colliders={false} scale={1} enabledRotations={[false, false, false]} position={[5, 5, 5]}>
+      <CapsuleCollider args={[0.5, crouch.current ? 0.1 : 0.5]} />
       <PointerLockControls />
       <mesh>
-        <capsuleGeometry args={[0.5, 1.5]} />
+        <capsuleGeometry args={[0.5, 1.25]} />
         <meshStandardMaterial color="blue" />
       </mesh>
     </RigidBody>
