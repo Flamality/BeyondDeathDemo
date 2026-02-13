@@ -1,0 +1,35 @@
+.inventory {
+    position: absolute;
+    bottom: 20px;
+    right: 10px;
+    display: flex;
+    gap: 10px;
+    z-index: 10;
+}
+
+.slot, .selectedSlot {
+    width: 80px;
+    height: 80px;
+    border: 2px solid black;
+    background-color: beige;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: black;
+    box-sizing: border-box;
+    position: relative;
+
+    div {
+        width: 100%;
+        height: 100%;
+        position: absolute !important;
+        top: 0;
+        left: 0;
+    }
+}
+
+.selectedSlot {
+    border: red solid 4px;
+}

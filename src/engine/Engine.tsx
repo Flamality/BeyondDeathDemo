@@ -3,6 +3,8 @@ import Baseplate from '../objects/environment/Baseplate'
 import { ACESFilmicToneMapping } from 'three'
 import { Physics, RigidBody } from '@react-three/rapier'
 import Player from '../player/Player'
+import { Box } from '../objects/map/items/Props'
+import ItemEngine from './ItemEngine'
 
 function Cube() {
     return (
@@ -30,8 +32,9 @@ export default function Engine() {
             
             {/* PHYSICS */}
             <Physics gravity={[0, -9.81, 0]}>
-                    <Player />
-            {/* OBJECTS */}
+                <Player />
+                {/* OBJECTS */}
+                <ItemEngine />
                 <RigidBody type='fixed'><Baseplate /></RigidBody>
             </Physics>
         </Canvas>

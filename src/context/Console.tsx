@@ -12,7 +12,7 @@ export const ConsoleProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     const consoleLog = (...message: string[]) => {
         const formattedMessage = message.join(' ');
-        setConsole((prevConsole: any) => [...prevConsole, formattedMessage]);
+        setConsole((prevConsole: any) => [formattedMessage, ...prevConsole, ]);
     }
     
     const value: ConsoleContextType = {
