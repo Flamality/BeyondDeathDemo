@@ -1,3 +1,4 @@
+import { createXRStore } from '@react-three/xr';
 import React, { createContext, useContext, useEffect, type ReactNode } from 'react';
 // import { useConsole } from './Console';
 
@@ -6,6 +7,8 @@ interface PlayerDataContextType {
     setPos: (pos: [number, number, number]) => void;
     rot: [number, number, number];
     setRot: (rot: [number, number, number]) => void;
+    store: any;
+    setStore: (store: any) => void;
 }
 
 const PlayerDataContext = createContext<PlayerDataContextType | undefined>(undefined);
@@ -13,17 +16,32 @@ const PlayerDataContext = createContext<PlayerDataContextType | undefined>(undef
 export const PlayerDataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [pos, setPos] = React.useState<[number, number, number]>([0, 8, 0]);
     const [rot, setRot] = React.useState<[number, number, number]>([0, 0, 0]);
+    const character = React.useRef<any>(null);
+
+    const [store, setStore] = React.useState<any>(null);
     // const { consoleLog } = useConsole();
     useEffect(() => {
         // consoleLog(`${pos.join(', ')}`);
     },[pos]);
+
+    useEffect(() => {
+        const VRStore = createXRStore({
+            controller:{
+                left: true,
+                right: true
+            }
+        });
+        setStore(VRStore);
+    },[])
     
     
     const value: PlayerDataContextType = {
         pos,
         setPos,
         rot,
-        setRot
+        setRot,
+        store,
+        setStore
     };
 
     return (

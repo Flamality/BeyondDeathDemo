@@ -6,30 +6,21 @@ import Player from '../player/Player'
 import ItemEngine from './ItemEngine'
 import WallMap from '../objects/map/walls/WallMap'
     import { createXRStore, VRButton, XR } from '@react-three/xr'
-
-function Cube() {
-    return (
-        <RigidBody type='dynamic'>
-        <mesh>
-            <boxGeometry args={[1,1,1]} ></boxGeometry>
-            <meshStandardMaterial color={'green'} />
-        </mesh></RigidBody>
-    )
-}
+import { usePlayerData } from '../context/PlayerData'
+import {Mirror} from '../objects/map/misc/Mirror'
 
 export default function Engine() {
-    const store = createXRStore({
-        controller:{
-            left: true,
-            right: true
-        }
-    })
+    const {store } = usePlayerData();
   return (
     <div className='canvas'>
-        <VRButton store={store} />
+        <button onClick={() => store.enterVR()}>Toggle VR</button>
         <Canvas dpr={window.devicePixelRatio} gl={{
                 toneMapping: ACESFilmicToneMapping,
                 toneMappingExposure: 1.25,
+                antialias: true,
+                powerPreference: 'high-performance',
+
+
             }}>
             <XR store={store}>
                 {/* ENVIRONMENT */}
@@ -38,7 +29,7 @@ export default function Engine() {
                 <color attach="background" args={["#0f0b0b"]} />
 
                 {/* MAP */}
-
+                <Mirror />
                 
                 {/* PHYSICS */}
                 <Physics gravity={[0, -9.81, 0]}>

@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { RigidBody, CapsuleCollider, RapierRigidBody } from '@react-three/rapier'
 import { usePlayerData } from '../context/PlayerData'
+// import { controll } from '@react-three/xr';
 
 export default function Player() {
   const rb = useRef<RapierRigidBody>(null);
@@ -98,14 +99,16 @@ camera.position.set(pos.x, pos.y + 1, pos.z);
 
   });
 
-  return (
+  return (<>
+  {/* <Controllers /> */}
     <RigidBody ref={rb} colliders={false} scale={1} enabledRotations={[false, false, false]} position={[5, 5, 5]}>
       <CapsuleCollider args={[0.5, crouch.current ? 0.1 : 0.5]} />
       <PointerLockControls />
       <mesh>
-        <capsuleGeometry args={[0.5, 1.25]} />
+        <capsuleGeometry args={[0.5, crouch.current ? 0.75 : 1.5, 0.5]} />
         <meshStandardMaterial color="blue" />
       </mesh>
     </RigidBody>
+    </>
   )
 }
