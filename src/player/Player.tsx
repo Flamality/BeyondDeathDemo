@@ -18,6 +18,7 @@ export default function Player() {
   const jump = useRef(false);
   const crouch = useRef(false);
   const jumpDebounce = useRef(false);
+  const sprint = useRef(false);
   const onSurface = useRef(false);
 
   useEffect(() => {
@@ -28,6 +29,8 @@ export default function Player() {
       if (e.code === 'KeyA') moveLeft.current = true;
       if (e.code === 'KeyD') moveRight.current = true;
       if (e.code === 'ControlLeft') crouch.current = true;
+      if (e.code === 'ShiftLeft') sprint.current = true;
+      if (e.code === 'KeyC') crouch.current = true;
       if (e.code === 'Space') {
         if (!jumpDebounce.current) {
         jump.current = true;
@@ -41,6 +44,8 @@ export default function Player() {
       if (e.code === 'KeyA') moveLeft.current = false;
       if (e.code === 'KeyD') moveRight.current = false;
       if (e.code === 'ControlLeft') crouch.current = false;
+      if (e.code === 'ShiftLeft') sprint.current = false;
+      if (e.code === 'KeyC') crouch.current = false;
       if (e.code === 'Space') jumpDebounce.current = false;
     };
     window.addEventListener('keydown', onKeyDown);
@@ -61,7 +66,8 @@ export default function Player() {
   
 
   const targetVel = new THREE.Vector3();
-  const speed = 10;
+  let speed = 3;
+  if (sprint.current) speed = 15;
   const pos = rb.current.translation();
   setPos([pos.x, pos.y, pos.z]);
 

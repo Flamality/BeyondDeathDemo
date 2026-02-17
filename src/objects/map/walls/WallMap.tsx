@@ -6,6 +6,7 @@ export default function WallMap() {
     <>
     <Wall position={[10, 0, 0]} width={20} />
     <Wall position={[10, 0, 0]} length={20} />
+    <Wall position={[5, 0, 10]} width={10} />
     </>
   )
 }
