@@ -4,11 +4,14 @@ import React, { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { RigidBody, CapsuleCollider, RapierRigidBody } from '@react-three/rapier'
 import { usePlayerData } from '../context/PlayerData'
+import { useXRInputSourceState, XROrigin } from '@react-three/xr'
 // import { controll } from '@react-three/xr';
 
 export default function Player() {
   const rb = useRef<RapierRigidBody>(null);
-  const { setPos, setRot: setPlayerRot }  = usePlayerData();
+  // const rController = useXRInputSourceState('controller', 'right');
+  // const lController = useXRInputSourceState('controller', 'left');
+  const { setPos, setRot: setPlayerRot, paused, setPaused }  = usePlayerData();
   const { camera } = useThree();
   
   const moveForward = useRef(false);
@@ -63,11 +66,24 @@ export default function Player() {
   rot.y = 0;
   rot.normalize();
   setPlayerRot([rot.x, rot.y, rot.z]);
-  
 
+  // const thumbstickState = rController?.gamepad['xr-standard-thumbstick'] || { xAxis: 0, yAxis: 0 };
+  // if (thumbstickState) {
+  //   moveForward.current = (thumbstickState.yAxis ?? 0) < -0.5;
+  //   moveBackward.current = (thumbstickState.yAxis ?? 0) > 0.5;
+  //   moveLeft.current = (thumbstickState.xAxis ?? 0) < -0.5;
+  //   moveRight.current = (thumbstickState.xAxis ?? 0) > 0.5;
+  // }
   const targetVel = new THREE.Vector3();
-  let speed = 3;
-  if (sprint.current) speed = 15;
+  let speed = 2;
+  if (sprint.current && crouch.current) {
+    speed = 2;
+  } else if (sprint.current) {
+    speed = 5;
+  }
+    else if (crouch.current) {
+      speed = 1;
+    }
   const pos = rb.current.translation();
   setPos([pos.x, pos.y, pos.z]);
 
@@ -87,8 +103,8 @@ targetVel.normalize().multiplyScalar(speed);
 
 const currentVel = rb.current.linvel();
 
-const acceleration = 12;
-const deceleration = 20;
+const acceleration = 24;
+const deceleration = 8;
 const dt = 1 / 60;
 
 const accelRate = targetVel.length() > 0 ? acceleration : deceleration;
@@ -107,12 +123,18 @@ camera.position.set(pos.x, pos.y + 1, pos.z);
 
   return (<>
   {/* <Controllers /> */}
-    <RigidBody ref={rb} colliders={false} scale={1} enabledRotations={[false, false, false]} position={[5, 5, 5]}>
+    <RigidBody 
+      ref={rb} 
+      colliders={false} 
+      lockRotations
+      position={[5, 5, 5]}
+    >
+      {/* <XROrigin /> */}
       <CapsuleCollider args={[0.5, crouch.current ? 0.1 : 0.5]} />
-      <PointerLockControls />
+      <PointerLockControls onUnlock={() => setPaused(true)} onLock={() => setPaused(false)} isLocked={paused}  />
       <mesh>
-        <capsuleGeometry args={[0.5, crouch.current ? 0.75 : 1.5, 0.5]} />
-        <meshStandardMaterial color="blue" />
+      <capsuleGeometry args={[0.5, crouch.current ? 0.75 : 1.5]} />
+      <meshStandardMaterial color="blue" wireframe={false} />
       </mesh>
     </RigidBody>
     </>

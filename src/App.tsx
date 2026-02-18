@@ -9,6 +9,7 @@ import Pointer from './components/Pointer/Pointer'
 import { ItemsProvider } from './context/Items'
 import { PlayerDataProvider } from './context/PlayerData'
 import Debug from './components/Debug/Debug'
+import Menu from './components/Menu/Menu'
 
 function App() {
 
@@ -18,6 +19,7 @@ function App() {
       <PlayerDataProvider>
         <ItemsProvider>
           <InventoryProvider>
+            <Menu />
             <Debug />
             <Console />
             <Inventory />

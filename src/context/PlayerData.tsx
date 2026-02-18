@@ -7,6 +7,8 @@ interface PlayerDataContextType {
     setPos: (pos: [number, number, number]) => void;
     rot: [number, number, number];
     setRot: (rot: [number, number, number]) => void;
+    paused: boolean;
+    setPaused: (paused: boolean) => void;
     store: any;
     setStore: (store: any) => void;
 }
@@ -16,6 +18,7 @@ const PlayerDataContext = createContext<PlayerDataContextType | undefined>(undef
 export const PlayerDataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [pos, setPos] = React.useState<[number, number, number]>([0, 8, 0]);
     const [rot, setRot] = React.useState<[number, number, number]>([0, 0, 0]);
+    const [paused, setPaused] = React.useState(false);
     const character = React.useRef<any>(null);
 
     const [store, setStore] = React.useState<any>(null);
@@ -26,9 +29,18 @@ export const PlayerDataProvider: React.FC<{ children: ReactNode }> = ({ children
 
     useEffect(() => {
         const VRStore = createXRStore({
+            hand: {
+                teleportPointer: false,
+                rayPointer: {
+                    rayModel: {
+                        color: 'red'
+                    }
+                }
+            },
             controller:{
                 left: true,
-                right: true
+                right: true,
+                teleportPointer: false,
             }
         });
         setStore(VRStore);
@@ -40,6 +52,8 @@ export const PlayerDataProvider: React.FC<{ children: ReactNode }> = ({ children
         setPos,
         rot,
         setRot,
+        paused,
+        setPaused,
         store,
         setStore
     };

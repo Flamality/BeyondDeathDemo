@@ -5,23 +5,22 @@ import { Physics, RigidBody } from '@react-three/rapier'
 import Player from '../player/Player'
 import ItemEngine from './ItemEngine'
 import WallMap from '../objects/map/walls/WallMap'
-    import { createXRStore, VRButton, XR } from '@react-three/xr'
+import { XR } from '@react-three/xr'
 import { usePlayerData } from '../context/PlayerData'
 import {Mirror} from '../objects/map/misc/Mirror'
 
 export default function Engine() {
-    const {store } = usePlayerData();
+    const {store, paused } = usePlayerData();
   return (
     <div className='canvas'>
-        <button onClick={() => store.enterVR()}>Toggle VR</button>
         <Canvas dpr={window.devicePixelRatio} gl={{
                 toneMapping: ACESFilmicToneMapping,
                 toneMappingExposure: 1.25,
                 antialias: true,
                 powerPreference: 'high-performance',
-
-
-            }}>
+            }}
+            frameloop={paused ? 'never' : 'always'}
+            >
             <XR store={store}>
                 {/* ENVIRONMENT */}
                 {/* <Environment preset='warehouse'  /> */}

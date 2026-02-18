@@ -5,7 +5,7 @@ export default function Wall({position, width = 0.05, length = 0.05, floor = 1}:
   return (
     <>
     <RigidBody type='fixed'>
-    <mesh position={[position[0], position[1] + ((floor - 1) * 10), position[2]]} castShadow receiveShadow>
+    <mesh   position={[position[0], position[1] + ((floor - 1) * 10), position[2]]} castShadow receiveShadow>
         <boxGeometry args={[width, 10, length]} />
         <meshStandardMaterial color={'#888888'} />
     </mesh>
