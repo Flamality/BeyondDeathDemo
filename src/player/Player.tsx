@@ -1,142 +1,170 @@
-import { PointerLockControls } from '@react-three/drei'
-import * as THREE from 'three'
-import React, { useEffect, useRef } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
-import { RigidBody, CapsuleCollider, RapierRigidBody } from '@react-three/rapier'
-import { usePlayerData } from '../context/PlayerData'
-import { useXRInputSourceState, XROrigin } from '@react-three/xr'
-// import { controll } from '@react-three/xr';
+import { PointerLockControls } from "@react-three/drei";
+import * as THREE from "three";
+import { useEffect, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import {
+  RigidBody,
+  CapsuleCollider,
+  RapierRigidBody,
+} from "@react-three/rapier";
+import { usePlayerData } from "../context/PlayerData";
+import { useXR, useXRInputSourceState, XROrigin } from "@react-three/xr";
+import { useKeybinds } from "../context/Keybinds";
 
 export default function Player() {
-  const rb = useRef<RapierRigidBody>(null);
-  // const rController = useXRInputSourceState('controller', 'right');
-  // const lController = useXRInputSourceState('controller', 'left');
-  const { setPos, setRot: setPlayerRot, paused, setPaused }  = usePlayerData();
+  const character = useRef<RapierRigidBody>(null);
+  const { session } = useXR();
+  const { lxrControllerRef, rxrControllerRef } = useKeybinds();
+  const rController = useXRInputSourceState("controller", "right");
+  const lController = useXRInputSourceState("controller", "left");
+  lxrControllerRef.current = lController;
+  rxrControllerRef.current = rController;
+  const {
+    pos: setPlayerPos,
+    rot: setPlayerRot,
+    setPaused,
+    cameraController,
+    paused,
+  } = usePlayerData();
   const { camera } = useThree();
-  
-  const moveForward = useRef(false);
-  const moveBackward = useRef(false);
-  const moveLeft = useRef(false);
-  const moveRight = useRef(false);
+
+  const moveForward = useRef(0);
+  const moveBackward = useRef(0);
+  const moveLeft = useRef(0);
+  const moveRight = useRef(0);
   const jump = useRef(false);
   const crouch = useRef(false);
   const jumpDebounce = useRef(false);
   const sprint = useRef(false);
-  const onSurface = useRef(false);
 
   useEffect(() => {
-    const onKeyDown = (e: any) => {
+    const onKeyDown = (e: KeyboardEvent) => {
       e.preventDefault();
-      if (e.code === 'KeyW') moveForward.current = true;
-      if (e.code === 'KeyS') moveBackward.current = true;
-      if (e.code === 'KeyA') moveLeft.current = true;
-      if (e.code === 'KeyD') moveRight.current = true;
-      if (e.code === 'ControlLeft') crouch.current = true;
-      if (e.code === 'ShiftLeft') sprint.current = true;
-      if (e.code === 'KeyC') crouch.current = true;
-      if (e.code === 'Space') {
+      if (e.code === "KeyW") moveForward.current = 1;
+      if (e.code === "KeyS") moveBackward.current = 1;
+      if (e.code === "KeyA") moveLeft.current = 1;
+      if (e.code === "KeyD") moveRight.current = 1;
+      if (e.code === "ControlLeft") crouch.current = true;
+      if (e.code === "ShiftLeft") sprint.current = true;
+      if (e.code === "KeyC") crouch.current = true;
+      if (e.code === "Space") {
         if (!jumpDebounce.current) {
-        jump.current = true;
-        jumpDebounce.current = true;
+          jump.current = true;
+          jumpDebounce.current = true;
+        }
       }
-    }
     };
-    const onKeyUp = (e: any) => {
-      if (e.code === 'KeyW') moveForward.current = false;
-      if (e.code === 'KeyS') moveBackward.current = false;
-      if (e.code === 'KeyA') moveLeft.current = false;
-      if (e.code === 'KeyD') moveRight.current = false;
-      if (e.code === 'ControlLeft') crouch.current = false;
-      if (e.code === 'ShiftLeft') sprint.current = false;
-      if (e.code === 'KeyC') crouch.current = false;
-      if (e.code === 'Space') jumpDebounce.current = false;
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "KeyW") moveForward.current = 0;
+      if (e.code === "KeyS") moveBackward.current = 0;
+      if (e.code === "KeyA") moveLeft.current = 0;
+      if (e.code === "KeyD") moveRight.current = 0;
+      if (e.code === "ControlLeft") crouch.current = false;
+      if (e.code === "ShiftLeft") sprint.current = false;
+      if (e.code === "KeyC") crouch.current = false;
+      if (e.code === "Space") jumpDebounce.current = false;
     };
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
     return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-    }
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
   }, []);
 
-  useFrame((state, delta) => {
-   if (!rb.current) return;
+  useFrame(() => {
+    if (!character.current) return;
 
-  const rot = camera.getWorldDirection(new THREE.Vector3());
-  rot.y = 0;
-  rot.normalize();
-  setPlayerRot([rot.x, rot.y, rot.z]);
+    // GET CAMERA ROTATION
+    const rot = camera.getWorldDirection(new THREE.Vector3());
+    rot.y = 0;
+    rot.normalize();
 
-  // const thumbstickState = rController?.gamepad['xr-standard-thumbstick'] || { xAxis: 0, yAxis: 0 };
-  // if (thumbstickState) {
-  //   moveForward.current = (thumbstickState.yAxis ?? 0) < -0.5;
-  //   moveBackward.current = (thumbstickState.yAxis ?? 0) > 0.5;
-  //   moveLeft.current = (thumbstickState.xAxis ?? 0) < -0.5;
-  //   moveRight.current = (thumbstickState.xAxis ?? 0) > 0.5;
-  // }
-  const targetVel = new THREE.Vector3();
-  let speed = 2;
-  if (sprint.current && crouch.current) {
-    speed = 2;
-  } else if (sprint.current) {
-    speed = 5;
-  }
-    else if (crouch.current) {
-      speed = 1;
+    // GET CAMERA POSITION
+    const pos = character.current.translation();
+    setPlayerRot.current = [rot.x, rot.y, rot.z];
+    setPlayerPos.current = [pos.x, pos.y, pos.z];
+
+    // GET CAMERA RIGHT
+    const right = new THREE.Vector3()
+      .crossVectors(rot, new THREE.Vector3(0, 1, 0))
+      .normalize();
+
+    // HANDLE CONTROLLER INPUT
+    const thumbstick = lController?.gamepad["xr-standard-thumbstick"];
+    if (thumbstick && !!session) {
+      const yAxis = thumbstick.yAxis || 0;
+      const xAxis = thumbstick.xAxis || 0;
+      moveForward.current = 0;
+      moveBackward.current = yAxis;
+      moveLeft.current = 0;
+      moveRight.current = xAxis;
+
+      console.log(`Thumbstick state: x=${xAxis}, y=${yAxis}`);
+      // console.log(pos, rot);
     }
-  const pos = rb.current.translation();
-  setPos([pos.x, pos.y, pos.z]);
 
+    // HANDLE SPEED
+    const speed = 5;
+    const forward = rot
+      .clone()
+      .multiplyScalar((moveForward.current - moveBackward.current) * speed);
+    const strafe = right
+      .clone()
+      .multiplyScalar((moveRight.current - moveLeft.current) * speed);
+    const targetVel = forward.add(strafe);
 
-if (moveForward.current) targetVel.add(rot);
-if (moveBackward.current) targetVel.sub(rot);
-if (moveLeft.current) targetVel.add(new THREE.Vector3().crossVectors(camera.up, rot));
-if (moveRight.current) targetVel.add(new THREE.Vector3().crossVectors(rot, camera.up));
-if (jump.current) {
-  const currentVel = rb.current.linvel();
-  rb.current.setLinvel({ x: currentVel.x, y: 5, z: currentVel.z }, true);
-  jump.current = false;
-  jumpDebounce.current = true;
-}
+    if (jump.current) {
+      const currentVel = character.current.linvel();
+      character.current.setLinvel(
+        { x: currentVel.x, y: 5, z: currentVel.z },
+        true,
+      );
+      jump.current = false;
+    }
 
-targetVel.normalize().multiplyScalar(speed);
+    // HANDLE MOVEMENT
+    const currentVel = character.current.linvel();
+    const newVelX = THREE.MathUtils.lerp(currentVel.x, targetVel.x, 0.1);
+    const newVelZ = THREE.MathUtils.lerp(currentVel.z, targetVel.z, 0.1);
 
-const currentVel = rb.current.linvel();
+    character.current.setLinvel(
+      { x: newVelX, y: currentVel.y, z: newVelZ },
+      true,
+    );
 
-const acceleration = 24;
-const deceleration = 8;
-const dt = 1 / 60;
-
-const accelRate = targetVel.length() > 0 ? acceleration : deceleration;
-
-const newVelX = THREE.MathUtils.lerp(currentVel.x, targetVel.x, accelRate * dt);
-const newVelZ = THREE.MathUtils.lerp(currentVel.z, targetVel.z, accelRate * dt);
-
-rb.current.setLinvel(
-  { x: newVelX, y: currentVel.y, z: newVelZ },
-  true
-);
-
-camera.position.set(pos.x, pos.y + 1, pos.z);
-
+    // SYNC CAMERA WITH CHARACTER
+    if (!!session) {
+      const xrOrigin = camera.parent;
+      if (xrOrigin) {
+        xrOrigin.position.set(pos.x, pos.y, pos.z);
+      }
+    } else {
+      camera.position.set(pos.x, pos.y + 1, pos.z);
+    }
   });
 
-  return (<>
-  {/* <Controllers /> */}
-    <RigidBody 
-      ref={rb} 
-      colliders={false} 
-      lockRotations
-      position={[5, 5, 5]}
-    >
-      {/* <XROrigin /> */}
-      <CapsuleCollider args={[0.5, crouch.current ? 0.1 : 0.5]} />
-      <PointerLockControls onUnlock={() => setPaused(true)} onLock={() => setPaused(false)} isLocked={paused}  />
-      <mesh>
-      <capsuleGeometry args={[0.5, crouch.current ? 0.75 : 1.5]} />
-      <meshStandardMaterial color="blue" wireframe={false} />
-      </mesh>
-    </RigidBody>
-    </>
-  )
+  return (
+    <XROrigin>
+      <RigidBody
+        ref={character}
+        colliders={false}
+        lockRotations
+        position={[5, 5, 5]}
+      >
+        <CapsuleCollider args={[0.5, crouch.current ? 0.1 : 0.5]} />
+        {!session && !paused && (
+          <PointerLockControls
+            onUnlock={() => setPaused(true)}
+            onLock={() => setPaused(false)}
+            ref={cameraController}
+          />
+        )}
+        <mesh>
+          <capsuleGeometry args={[0.5, 1.2, 8, 16]} />
+          <meshStandardMaterial color='blue' />
+        </mesh>
+      </RigidBody>
+    </XROrigin>
+  );
 }

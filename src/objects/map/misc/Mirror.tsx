@@ -1,10 +1,10 @@
-import { MeshReflectorMaterial } from '@react-three/drei'
+import { MeshReflectorMaterial } from "@react-three/drei";
 
 export function Mirror() {
   return (
-    <mesh castShadow receiveShadow position={[-3,0,0]}>
-      <planeGeometry args={[6,10]} />
-      <MeshReflectorMaterial
+    <mesh castShadow receiveShadow position={[-3, 0, 0]}>
+      <planeGeometry args={[6, 10]} />
+      {/* <MeshReflectorMaterial
         blur={[300, 100]}
         resolution={1024}
         mixBlur={1}
@@ -15,7 +15,7 @@ export function Mirror() {
         maxDepthThreshold={1.4}
         color="#ffffff"
         metalness={0.8}
-      />
+      /> */}
     </mesh>
-  )
+  );
 }
