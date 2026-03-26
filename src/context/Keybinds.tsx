@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
+import { usePlayerData } from "./PlayerData";
 
 type ActionStates = Record<string, number>;
 
@@ -32,6 +33,7 @@ export const KeybindsProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [actions, setActions] = useState<ActionStates>({});
   const [keybinds, setKeybinds] = useState<KeybindsMap>({});
+  const { paused } = usePlayerData();
   const lxrControllerRef = React.useRef<any>(null);
   const rxrControllerRef = React.useRef<any>(null);
 
@@ -42,6 +44,7 @@ export const KeybindsProvider: React.FC<{ children: ReactNode }> = ({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (paused) return;
       Object.entries(keybinds).forEach(([action, bind]) => {
         if (bind.keys?.includes(e.key)) {
           setActions((prev) => ({ ...prev, [action]: 1 }));
@@ -50,6 +53,7 @@ export const KeybindsProvider: React.FC<{ children: ReactNode }> = ({
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (paused) return;
       Object.entries(keybinds).forEach(([action, bind]) => {
         if (bind.keys?.includes(e.key)) {
           setActions((prev) => ({ ...prev, [action]: 0 }));
@@ -63,7 +67,7 @@ export const KeybindsProvider: React.FC<{ children: ReactNode }> = ({
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [keybinds]);
+  }, [keybinds, paused]);
 
   useEffect(() => {
     const pollGamepads = () => {
@@ -114,6 +118,7 @@ export const KeybindsProvider: React.FC<{ children: ReactNode }> = ({
     });
     bindKey("jump", { keys: [" ", "Space"], buttons: [0] });
     bindKey("crouch", { keys: ["ControlLeft", "c"], buttons: [1] });
+    bindKey("sprint", { keys: ["ShiftLeft"], buttons: [2] });
   }, []);
 
   return (

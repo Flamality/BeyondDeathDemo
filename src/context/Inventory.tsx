@@ -1,8 +1,10 @@
 import React, { createContext, useContext, type ReactNode } from "react";
 // import { usePlayerData } from './PlayerData';
 import { useItems } from "./Items";
-import Inventory from "../components/Inventory/Inventory";
+import { usePlayerData } from "./PlayerData";
 // import { useConsole } from './Console';
+
+import * as THREE from "three";
 
 interface InventoryContextType {
   AddToInventory: (id: string) => boolean;
@@ -11,7 +13,10 @@ interface InventoryContextType {
   currentSlot: number;
   setCurrentSlot: (slot: number) => void;
   dropCurrentSlot: (pos: [number, number, number]) => void;
+  clearCurrentSlot: () => void;
 }
+
+
 
 const InventoryContext = createContext<InventoryContextType | undefined>(
   undefined,
@@ -23,6 +28,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const { addItemToMap } = useItems();
+  const {pos, rot} = usePlayerData();
   const [Inventory, setInventory] = React.useState<string[]>([]);
   const [currentSlot, setCurrentSlot] = React.useState<number>(0);
   const AddToInventory = (id: string) => {
@@ -35,21 +41,35 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const dropCurrentSlot = React.useCallback(
-    (pos: [number, number, number]) => {
-      console.log(
-        `Dropping item at ${pos.join(", ")} from slot ${currentSlot} with item ${Inventory[currentSlot]} inventory of ${Inventory.join(", ")}`,
-      );
+    () => {
       const item = Inventory[currentSlot];
+      const position = pos.current;
+      const rotation = rot.current;
+
+      const adjustedPos: [number, number, number] = [
+          pos.current[0] + rot.current[0] * 2,
+          pos.current[1] + 1,
+          pos.current[2] + rot.current[2] * 2,
+        ];
       if (!item) return;
-      addItemToMap(item, pos);
+      addItemToMap(item, adjustedPos, rotation);
       setInventory((prevInventory: string[]) => {
         const newInventory = [...prevInventory];
         newInventory.splice(currentSlot, 1);
         return newInventory;
       });
     },
-    [Inventory, currentSlot, addItemToMap],
+    [Inventory, currentSlot, addItemToMap, rot, pos],
   );
+
+  const clearCurrentSlot = () => {
+    setInventory((prevInventory: string[]) => {
+      const newInventory = [...prevInventory];
+      newInventory.splice(currentSlot, 1);
+      return newInventory;
+    }
+    );
+  };
 
   const value: InventoryContextType = {
     AddToInventory,
@@ -58,6 +78,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({
     currentSlot,
     setCurrentSlot,
     dropCurrentSlot,
+    clearCurrentSlot,
   };
 
   return (

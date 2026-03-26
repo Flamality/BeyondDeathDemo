@@ -14,6 +14,8 @@ interface PlayerDataContextType {
   rot: RefObject<[number, number, number]>;
   paused: boolean;
   setPaused: (paused: boolean) => void;
+  inMenu: boolean;
+  setInMenu: (inMenu: boolean) => void;
   store: any;
   setStore: (store: any) => void;
   character?: any;
@@ -30,6 +32,7 @@ export const PlayerDataProvider: React.FC<{ children: ReactNode }> = ({
   const pos = React.useRef<[number, number, number]>([0, 8, 0]);
   const rot = React.useRef<[number, number, number]>([0, 0, 0]);
   const [paused, setPaused] = React.useState(false);
+  const [inMenu, setInMenu] = React.useState(false);
   const character = React.useRef<any>(null);
   const cameraController = React.useRef<any>(null);
 
@@ -46,7 +49,7 @@ export const PlayerDataProvider: React.FC<{ children: ReactNode }> = ({
         teleportPointer: false,
         rayPointer: {
           rayModel: {
-            color: "red",
+            color: "blue",
           },
         },
       },
@@ -64,6 +67,8 @@ export const PlayerDataProvider: React.FC<{ children: ReactNode }> = ({
     rot,
     paused,
     setPaused,
+    inMenu,
+    setInMenu,
     store,
     setStore,
     character,

@@ -4,7 +4,7 @@ export function Mirror() {
   return (
     <mesh castShadow receiveShadow position={[-3, 0, 0]}>
       <planeGeometry args={[6, 10]} />
-      {/* <MeshReflectorMaterial
+      <MeshReflectorMaterial
         blur={[300, 100]}
         resolution={1024}
         mixBlur={1}
@@ -14,8 +14,8 @@ export function Mirror() {
         minDepthThreshold={0.4}
         maxDepthThreshold={1.4}
         color="#ffffff"
-        metalness={0.8}
-      /> */}
+        metalness={0.2}
+      />
     </mesh>
   );
 }
