@@ -6,14 +6,18 @@ type MouseLookProps = {
   enabled?: boolean;
   paused?: boolean;
   onUnlock?: () => void;
+  fov?: number;
 };
 
 export default function PlayerCamera({
   enabled = true,
   paused = false,
   onUnlock,
+  fov = 80,
 }: MouseLookProps) {
   const { camera, gl } = useThree();
+
+  const targetFov = useRef(fov);
 
   const yaw = useRef(0);
   const pitch = useRef(0);
@@ -87,6 +91,11 @@ export default function PlayerCamera({
     };
   }, [camera, gl, enabled, paused, onUnlock]);
 
+  useEffect(() => {
+    targetFov.current = fov;
+  }, [fov]);
+
+
   useFrame((_, delta) => {
     if (!enabled || paused) return;
 
@@ -103,6 +112,10 @@ export default function PlayerCamera({
     camera.quaternion.setFromEuler(
       new THREE.Euler(pitch.current, yaw.current, 0, "YXZ"),
     );
+
+     const cam = camera as THREE.PerspectiveCamera;
+      cam.fov = THREE.MathUtils.lerp(cam.fov, targetFov.current, delta * 10);
+      cam.updateProjectionMatrix();
   });
 
   return null;

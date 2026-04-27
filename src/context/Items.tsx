@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { useConsole } from './Console';
 
+import item_map from "../objects/map/items/item_map.json";
+
 import * as THREE from 'three';
 
 interface ItemsContextType {
@@ -11,6 +13,10 @@ interface ItemsContextType {
     setWorldItems: React.Dispatch<React.SetStateAction<THREE.Object3D[]>>;
     currentHit: React.RefObject<THREE.Object3D | null>;
     changeInCurrentHit: (prev: string) => void;
+    hitDist: React.RefObject<number>;
+    rawItems: any[];
+    setRawItems: React.Dispatch<React.SetStateAction<any[]>>;
+    updateMap: () => void;
 }
 
 import * as Props from '../objects/map/items/Props';
@@ -26,24 +32,47 @@ export interface ItemsList {
     rotation: [number, number, number];
     mapId: string;
     noRigid?: boolean;
+    noColliders?: boolean;
 }
 
 export const ItemsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [worldItems, setWorldItems] = React.useState<THREE.Object3D[]>([]);
     const [Items, setItems] = React.useState<ItemsList[]>([]);
+    const [rawItems, setRawItems] = React.useState<any[]>([]);
     const {paused} = usePlayerData();
     const currentHit = useRef<THREE.Object3D | null>(null);
     const {consoleLog} = useConsole();
+    const hitDist = useRef<number>(0);
 
 
     useEffect(() => {
         const handleClick = () => {
             if (paused) return;
-            eventBus.emit("doorInteract", { uuid: currentHit.current?.userData.uuid });
+            if (currentHit.current?.userData?.type === "item") {
+                eventBus.emit("itemClicked", { uuid: currentHit.current.userData.uuid });
+            } else if (currentHit.current?.userData?.type === "door") {
+                eventBus.emit("doorInteract", { uuid: currentHit.current.userData.uuid });
+            }
+
+        }
+
+        const handleE = () => {
+            if (paused) return;
+           
         }
         window.addEventListener("click", handleClick);
+        window.addEventListener("keydown", (e) => {
+            if (e.code === "KeyE") {
+                handleE();
+            }
+        });
         return () => {
             window.removeEventListener("click", handleClick);
+            window.removeEventListener("keydown", (e) => {
+                if (e.code === "KeyE") {
+                    handleE();
+                }
+            });
         }
     },[])
 
@@ -59,7 +88,7 @@ export const ItemsProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
 
     const addItemToMap = (id: string, position: [number, number, number], rotation: [number, number, number]) => {
-        const prop = (Props as Record<string, any>)[id];
+        const prop = Props.getItemComponent(id); 
         if (!prop) {
             consoleLog(`Item ${id} does not exist.`);
             return;
@@ -76,23 +105,26 @@ export const ItemsProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setItems([]);
     }
 
+    const setup_map = () => {
+        debug_clearmapofitems();
+        for (const item of rawItems) {
+            addItemToMap(item.item, item.pos as [number, number, number], item.rot as [number, number, number]);
+        }
+    }
+
+   useEffect(() => {
+        setRawItems(item_map);
+   },[item_map])
+    
     useEffect(() => {
         debug_clearmapofitems();
-        addItemToMap('Box', [0, 0, 0], [0, 0, 0]);
-        addItemToMap('Box2', [2, 2, 2], [0, 0, 0]);
-        addItemToMap('Book', [1, 0, 4], [0, 0, 0]);
+        setup_map();
+    }, [rawItems])
 
-        // ROOM M123
-        addItemToMap('Bed', [1, 0, 3.1], [0,90,0])
-        addItemToMap('Bed', [3.5, 0, 3.1], [0,90,0])
-        addItemToMap('Bed', [6, 0, 3.1], [0,90,0])
-
-        addItemToMap('Shelf', [7.5, 0, 9.5], [0, 180, 0])
-
-        addItemToMap("Table", [1, 0, 8.5], [0, 12, 0])
-
-        // ROOM M121
-    },[])
+    const updateMap = () => {
+        debug_clearmapofitems();
+        setup_map();
+    }
     
     const value: ItemsContextType = {
         Items,
@@ -101,7 +133,11 @@ export const ItemsProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         ,worldItems,
         setWorldItems,
         currentHit,
-        changeInCurrentHit
+        changeInCurrentHit,
+        hitDist,
+        rawItems,
+        setRawItems,
+        updateMap,
     };
 
     return (

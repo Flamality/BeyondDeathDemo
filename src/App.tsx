@@ -17,7 +17,7 @@ function App() {
           <KeybindsProvider>
             <ItemsProvider>
               <InventoryProvider>
-                {/* <Debug /> */}
+                <Debug />
                 <Console />
                 <Engine />
               </InventoryProvider>

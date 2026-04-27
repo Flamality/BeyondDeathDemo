@@ -1,76 +1,97 @@
-import { RigidBody } from '@react-three/rapier'
-import React, { useEffect, useRef } from 'react'
-import { useConsole } from '../../../context/Console'
-import { useInventory } from '../../../context/Inventory';
-import { useItems } from '../../../context/Items';
-import { usePlayerData } from '../../../context/PlayerData'
+import { RigidBody } from "@react-three/rapier";
+import React, { useEffect, useRef, useCallback } from "react";
+import { useConsole } from "../../../context/Console";
+import { useInventory } from "../../../context/Inventory";
+import { useItems } from "../../../context/Items";
+import { usePlayerData } from "../../../context/PlayerData";
+import * as THREE from "three";
+import { eventBus } from "../../../context/Bus";
 
-import * as THREE from 'three';
+export default function Item({
+  data,
+  gravity = true,
+  grabbable = true,
+  children,
+}: {
+  data: any;
+  gravity?: boolean;
+  grabbable?: boolean;
+  children: React.ReactNode;
+}) {
+  const { consoleLog } = useConsole();
+  const { AddToInventory } = useInventory();
+  const { removeItemFromMap } = useItems();
+  const { paused } = usePlayerData();
 
+  const handleClickRef = useRef(false);
+  const thisItem = useRef<THREE.Group>(null);
+  const uuidRef = useRef(crypto.randomUUID());
 
+  const rotation: [number, number, number] = [
+    THREE.MathUtils.degToRad(data.rotation[0]),
+    THREE.MathUtils.degToRad(data.rotation[1]),
+    THREE.MathUtils.degToRad(data.rotation[2]),
+  ];
 
-export default function Item({data, gravity = true, grabbable = true, children}: { data: any, gravity?: boolean, grabbable?: boolean, children: React.ReactNode}) {
-const {consoleLog} = useConsole();
-const {AddToInventory} = useInventory();
-const handleClickRef = useRef(false);
-const thisItem = useRef<THREE.Object3D | null>(null);
-const {removeItemFromMap} = useItems();
-const { paused } = usePlayerData();
-const uuidRef = useRef(crypto.randomUUID());
+  useEffect(() => {
+    if (!thisItem.current) return;
 
-useEffect(() => {
-  if (!thisItem.current) return
-  thisItem.current.userData.clickRoot = true;
-},[])
+    thisItem.current.userData.clickRoot = true;
+    thisItem.current.userData.name = data.id;
+    thisItem.current.userData.uuid = uuidRef.current;
+    thisItem.current.userData.type = "item";
+  }, [data.id]);
 
-const handleClick = () => {
+  const handleClick = useCallback(() => {
     if (handleClickRef.current || !grabbable || paused || data?.noRigid) return;
 
     handleClickRef.current = true;
+
     const picked = AddToInventory(data.id);
+
     if (picked) {
-        consoleLog(`Picked up ${data.id}`);
-        removeItemFromMap(data.mapId);
+      consoleLog(`Picked up ${data.id}`);
+      removeItemFromMap(data.mapId);
     } else {
-        consoleLog(`Could not pick up ${data.id}`);
+      consoleLog(`Could not pick up ${data.id}`);
     }
+
     handleClickRef.current = false;
-}
+  }, [AddToInventory, consoleLog, data, grabbable, paused, removeItemFromMap]);
 
+  useEffect(() => {
+    const unsub = eventBus.on("itemClicked", (payload) => {
+      if (!payload?.uuid) return;
+      if (payload.uuid === uuidRef.current) {
+        handleClick();
+      }
+    });
 
+    return unsub;
+  }, [handleClick]);
 
-const rotation = new THREE.Euler(
-  THREE.MathUtils.degToRad(data.rotation[0]),
-  THREE.MathUtils.degToRad(data.rotation[1]),
-  THREE.MathUtils.degToRad(data.rotation[2])
-);
-const Group = () => {
-  return (
-   <group 
-        position={data.position} 
-        rotation={rotation}
-        ref={thisItem}
-        userData={{
-          clickRoot: true,
-          name: data.id,
-          uuid: uuidRef.current
-        }}
+  const content = (
+    <group ref={thisItem}>
+      {children}
+    </group>
+  );
 
-        >
-          {children}
+  if (!!data.noRigid || !gravity) {
+    return (
+      <group position={data.position} rotation={rotation}>
+        {content}
       </group>
-  )
-} 
+    );
+  }
+
   return (
-    !!(data.noRigid) ? (
-        <Group />
-    ) : (
-      <RigidBody type={gravity ? "dynamic" : "fixed"}>
-        <Group />
-      </RigidBody>
-    )
-   
-  )
+    <RigidBody
+      type="dynamic"
+      colliders={false}
+      position={data.position}
+      rotation={rotation}
+    >
+      {content}
+    </RigidBody>
+  );
 }
-
-

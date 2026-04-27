@@ -47,12 +47,14 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({
       const rotation = rot.current;
 
       const adjustedPos: [number, number, number] = [
-          pos.current[0] + rot.current[0] * 2,
-          pos.current[1] + 1,
-          pos.current[2] + rot.current[2] * 2,
+          position[0] + rotation[0] * 2,
+          position[1] + 1,
+          position[2] + rotation[2] * 2,
         ];
+
+      const adjustedRot = [0, THREE.MathUtils.radToDeg(Math.atan2(rotation[0], rotation[2])), 0] as [number, number, number];
       if (!item) return;
-      addItemToMap(item, adjustedPos, rotation);
+      addItemToMap(item, adjustedPos, adjustedRot);
       setInventory((prevInventory: string[]) => {
         const newInventory = [...prevInventory];
         newInventory.splice(currentSlot, 1);

@@ -1,16 +1,21 @@
-import { Box } from '@react-three/drei';
-import { useFrame } from '@react-three/fiber';
-import { RigidBody } from '@react-three/rapier';
-    import React, { useEffect, useRef, useState } from 'react';
+import { Box } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
+import { RigidBody } from "@react-three/rapier";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import * as Three from "three";
 
-import * as Three from 'three';
-import { useInventory } from '../../../context/Inventory';
-import { useConsole } from '../../../context/Console';
-import { useAudio } from '../../../context/Audio';
-import { texture_metal, texture_plaster, texture_wood } from '../../../materials/Textures';
+import { useInventory } from "../../../context/Inventory";
+import { useConsole } from "../../../context/Console";
+import { useAudio } from "../../../context/Audio";
+import {
+  material_metal_world,
+  material_plaster_world,
+  material_table_world,
+  material_wood_world,
+} from "../../../materials/Textures";
 
-import { eventBus } from '../../../context/Bus.ts';
-import { EffectComposer, Outline } from '@react-three/postprocessing';
+import { eventBus } from "../../../context/Bus.ts";
+import { nameById } from "../items/Props.tsx";
 
 interface DoorProps {
   position: [number, number, number];
@@ -21,150 +26,161 @@ interface DoorProps {
 }
 
 const HEIGHT = 3;
+const WIDTH = 2;
+const THICKNESS = 0.1;
 
-const Door: React.FC<DoorProps> = ({position, rotation = 0,  locked = false, itemRequired, takeItem = false}: DoorProps) => {
-    const rotRad = Three.MathUtils.degToRad(rotation);
-    const [pos, setPos] = useState<[number, number, number]>(position);
-    const {playSound} = useAudio();
-    const [doorOpen, setDoorOpen] = useState(false);
-    const {Inventory, currentSlot, clearCurrentSlot} = useInventory();
-    const {consoleLog} = useConsole();
-    const [doorLocked, setDoorLocked] = useState(locked);
-    const doorRef = useRef(null);
-    const objRef = useRef(null);
-    const uuidRef = useRef(crypto.randomUUID());
-    const [hovered, setHovered] = useState(false);
-     useEffect(() => {
-        setPos([
-            position[0],
-            position[1] + HEIGHT / 2,
-            position[2]
-        ]);
-     },[position])
-    useEffect(() => {
-        const unsub1 = eventBus.on("doorInteract", (payload) => {
-            if (!doorRef.current || !payload.uuid) return;
-            if (payload.uuid === uuidRef.current) {
-                toggleDoor();
-            }
-        });
+const Door: React.FC<DoorProps> = ({
+  position,
+  rotation = 0,
+  locked = false,
+  itemRequired,
+  takeItem = false,
+}) => {
+  const rotRad = Three.MathUtils.degToRad(rotation);
 
-        return unsub1;
-    }, [locked, doorLocked, Inventory, currentSlot, itemRequired, takeItem, clearCurrentSlot, consoleLog, playSound]);
+  const { playSound } = useAudio();
+  const { Inventory, currentSlot, clearCurrentSlot } = useInventory();
+  const { consoleLog } = useConsole();
 
-    useEffect(() => {
-        const unsub2 = eventBus.on("hover", (payload) => {
-            if (!doorRef.current || !payload.uuid) return;
-            if (payload.uuid === uuidRef.current) {
-                setHovered(true);
-            }
-        });
+  const [doorOpen, setDoorOpen] = useState(false);
+  const [doorLocked, setDoorLocked] = useState(locked);
+  const [hovered, setHovered] = useState(false);
 
-        return unsub2;
-    }, []);
+  const uuidRef = useRef(crypto.randomUUID());
+  const hingeRef = useRef<Three.Group>(null);
 
-     useEffect(() => {
-        const unsub3 = eventBus.on("unhover", (payload) => {
-            if (!doorRef.current || !payload.uuid) return;
-            if (payload.uuid === uuidRef.current) {
-                setHovered(false);
-            }
-        });
-
-        return unsub3;
-    }, []);
-
-    useFrame(() => {
-        if (doorRef.current) {
-            const doorBody = doorRef.current as any;
-            const baseRotation = Three.MathUtils.degToRad(rotation);
-            let targetRotation = doorOpen ? baseRotation - Math.PI / 2 : baseRotation;
-            let targetX = doorOpen ? position[0] + 1 : position[0];
-            let targetZ = doorOpen ? position[2] - 1 : position[2];
-            if (rotation === 90) {
-                targetX = doorOpen ? position[0] + 1 : position[0];
-                targetZ = doorOpen ? position[2] + 1 : position[2];
-            }
-            if (rotation === -90) {
-                targetX = doorOpen ? position[0] - 1 : position[0];
-                targetZ = doorOpen ? position[2] + 1 : position[2];
-                targetRotation = doorOpen ? baseRotation + Math.PI / 2 : baseRotation;
-            }
-            
-            // Get Rapier quaternion and convert to Three.js Quaternion
-            const rapierQuat = doorBody.rotation();
-            const threeQuat = new Three.Quaternion(rapierQuat.x, rapierQuat.y, rapierQuat.z, rapierQuat.w);
-            const currentEuler = new Three.Euler().setFromQuaternion(threeQuat);
-            
-            currentEuler.y += (targetRotation - currentEuler.y) * 0.1;
-            const newQuat = new Three.Quaternion().setFromEuler(currentEuler);
-            doorBody.setRotation(newQuat, true);
-            
-            const currentPos = doorBody.translation();
-            doorBody.setTranslation({
-                x: currentPos.x + (targetX - currentPos.x) * 0.1,
-                y: position[1],
-                z: currentPos.z + (targetZ - currentPos.z) * 0.1
-            }, true);
-        }
+  useEffect(() => {
+    const unsub = eventBus.on("doorInteract", (payload) => {
+      if (!payload?.uuid) return;
+      if (payload.uuid === uuidRef.current) {
+        toggleDoor();
+      }
     });
 
-    const toggleDoor = () => {
-        console.log('door is', doorOpen, 'and is locked', locked)
-         if (doorLocked === false) {
-            setDoorOpen(prev => !prev);
-            playSound('door_open');
-        } else {
-            if (Inventory[currentSlot] === itemRequired) {
-                playSound('door_lock');
-                setDoorLocked(false);
-                if (takeItem) {
-                    clearCurrentSlot();
-                }
-            } else {
-                playSound('door_locked');
-                consoleLog(`Door is locked. You need ${itemRequired} to open it.`);
-            }
-        }
+    return unsub;
+  }, [doorLocked, Inventory, currentSlot, itemRequired, takeItem, clearCurrentSlot, consoleLog, playSound]);
+
+  useEffect(() => {
+    const unsub = eventBus.on("hover", (payload) => {
+      if (!payload?.uuid) return;
+      if (payload.uuid === uuidRef.current) {
+        setHovered(true);
+      }
+    });
+
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    const unsub = eventBus.on("unhover", (payload) => {
+      if (!payload?.uuid) return;
+      if (payload.uuid === uuidRef.current) {
+        setHovered(false);
+      }
+    });
+
+    return unsub;
+  }, []);
+  
+
+  useFrame((_, delta) => {
+    if (!hingeRef.current) return;
+
+    let targetY = 0;
+
+    if (doorOpen) {
+      if (rotation === -90) {
+        targetY = Math.PI / 2;
+      } else {
+        targetY = -Math.PI / 2;
+      }
     }
+
+    const t = 1 - Math.exp(-6 * delta);
+    hingeRef.current.rotation.y = Three.MathUtils.lerp(
+      hingeRef.current.rotation.y,
+      targetY,
+      t
+    );
+  });
+
+  const toggleDoor = () => {
+    if (!doorLocked) {
+      setDoorOpen((prev) => !prev);
+      playSound("door_open");
+      return;
+    }
+
+    if (Inventory[currentSlot] === itemRequired && (itemRequired !== undefined || itemRequired !== null)) {
+      playSound("door_lock");
+      setDoorLocked(false);
+
+      if (takeItem) {
+        clearCurrentSlot();
+      }
+
+      return;
+    }
+
+    playSound("door_locked");
+    const itemName = nameById[itemRequired?.toLowerCase() || ""] || "required item";
+    consoleLog(`Door is locked. You need ${itemName} to open it.`);
+  };
+
   return (
-    <>
-    <group ref={objRef} position={pos} rotation={[0, rotRad, 0]} userData={{
-          clickRoot: true,
-          name: "door",
-          uuid: uuidRef.current
-        }}
-        >
-        {/* FRAME */}
-        <RigidBody type='fixed' position={[0,0,0]} rotation={[0, 0, 0]}>
-        <Box args={[0.1, HEIGHT, 0.15]} position={[-1,0,0]} material={texture_wood}>
+    <group position={position} rotation={[0, rotRad, 0]}>
+      {/* FRAME COLLIDERS */}
+      <RigidBody type="fixed" colliders="cuboid" position={[0, HEIGHT / 2, 0]}>
+        <Box
+          args={[0.1, HEIGHT, 0.15]}
+          position={[-1, 0, 0]}
+          material={material_wood_world}
+        />
+        <Box
+          args={[0.1, HEIGHT, 0.15]}
+          position={[1, 0, 0]}
+          material={material_wood_world}
+        />
+        <Box
+          args={[2, 0.1, 0.15]}
+          position={[0, HEIGHT / 2, 0]}
+          material={material_wood_world}
+        />
+      </RigidBody>
+
+      {/* WALL */}
+      <RigidBody type="fixed" colliders="cuboid" position={[0, HEIGHT + (5 - HEIGHT) / 2, 0]}
+      
+      >
+        <Box args={[2, 5 - HEIGHT, 0.4]} material={material_plaster_world}>
         </Box>
-        <Box args={[0.1, HEIGHT, 0.15]} position={[1,0,0]} material={texture_wood}>
-        </Box>
-        <Box args={[2, 0.1, 0.15]} position={[0, HEIGHT / 2, 0]} material={texture_wood}>
-        </Box>
+      </RigidBody>
+
+    {/* DOOR */}
+    <group position={[-WIDTH / 2, HEIGHT / 2, 0]} ref={hingeRef}>
+        <Box
+          args={[WIDTH, HEIGHT, THICKNESS]}
+          position={[WIDTH / 2, 0, 0]}
+          material={material_metal_world}
+          userData={{
+            clickRoot: true,
+            name: "door",
+            uuid: uuidRef.current,
+            type: "door",
+            hovered,
+          }}
+        />
+      </group>
+
+      {!doorOpen && (
+        <RigidBody type="fixed" colliders="cuboid" position={[0, HEIGHT / 2, 0]}>
+          <Box args={[WIDTH, HEIGHT, THICKNESS]} visible={true} >
+            <meshStandardMaterial color="transparent" opacity={0} transparent={true} />
+          </Box>
         </RigidBody>
-        {/* WALL */}
-        <RigidBody type='fixed'  position={[0, HEIGHT - (.5), 0]} rotation={[0, 0, 0]}>
-            <Box args={[2, 5 - HEIGHT, 0.4]} position={[0, 0, 0]} material={texture_plaster}>
-            </Box>
-        </RigidBody>
-        {/* DOOR */}
-        <RigidBody type='fixed' position={[0, 0, 0]} rotation={[0, rotRad, 0]} ref={doorRef}>
-            <Box args={[2, HEIGHT, 0.1]} position={[0, 0, 0]} material={texture_metal}>
-            </Box>
-        </RigidBody>
-        <EffectComposer>
-            <Outline 
-                 selection={[objRef]}
-                edgeStrength={5}
-                visibleEdgeColor={2}
-                hiddenEdgeColor="white"
-            />
-        </EffectComposer>
-        </group>
-    </>
+      )}
+    </group>
   );
-}
+};
 
 export default Door;

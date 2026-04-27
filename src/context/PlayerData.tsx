@@ -16,10 +16,12 @@ interface PlayerDataContextType {
   setPaused: (paused: boolean) => void;
   inMenu: boolean;
   setInMenu: (inMenu: boolean) => void;
-  store: any;
-  setStore: (store: any) => void;
   character?: any;
   cameraController?: any;
+  takingImage?: boolean;
+  setTakingImage?: any;
+  capturedImage?: string | null;
+  setCapturedImage?: any;
 }
 
 const PlayerDataContext = createContext<PlayerDataContextType | undefined>(
@@ -35,32 +37,13 @@ export const PlayerDataProvider: React.FC<{ children: ReactNode }> = ({
   const [inMenu, setInMenu] = React.useState(false);
   const character = React.useRef<any>(null);
   const cameraController = React.useRef<any>(null);
+  const [takingImage, setTakingImage] = React.useState<boolean>(false);
+  const [capturedImage, setCapturedImage] = React.useState<string | null>(null);
 
-  const [store, setStore] = React.useState<any>(null);
   const { consoleLog } = useConsole();
   useEffect(() => {
     consoleLog(`${pos.current.join(", ")}`);
   }, [pos]);
-
-  useEffect(() => {
-    const VRStore = createXRStore({
-      emulate: true,
-      hand: {
-        teleportPointer: false,
-        rayPointer: {
-          rayModel: {
-            color: "blue",
-          },
-        },
-      },
-      controller: {
-        left: true,
-        right: true,
-        teleportPointer: false,
-      },
-    });
-    setStore(VRStore);
-  }, []);
 
   const value: PlayerDataContextType = {
     pos,
@@ -69,10 +52,12 @@ export const PlayerDataProvider: React.FC<{ children: ReactNode }> = ({
     setPaused,
     inMenu,
     setInMenu,
-    store,
-    setStore,
     character,
     cameraController,
+    takingImage,
+    setTakingImage,
+    capturedImage,
+    setCapturedImage,
   };
 
   return (

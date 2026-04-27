@@ -1,9 +1,24 @@
 import { Container as Div, Fullscreen, Text } from '@react-three/uikit'
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
+import { useItems } from '../context/Items'
+import { useConsole } from '../context/Console'
+import type { lessThan } from 'three/src/nodes/TSL.js'
 
 export default function CameraOverlay() {
   const [time, setTime] = React.useState<string>('[ Error ]')
+  const [recordDotOpacity, setRecordDotOpacity] = React.useState<number>(0)
+  const { currentHit } = useItems();
+  const [hovered, setHovered] = useState(false);
+  const {consoleLog} = useConsole();
+  const offset = 50
+    const size = 65
+    const thickness = 6
+    const color = 'white'
 
+    let distance = 90
+    const crosshairThickness = 4
+    const crosshairSize = 36
+    const squareLength = 31
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date()
@@ -13,19 +28,41 @@ export default function CameraOverlay() {
     return () => clearInterval(interval)
   }, [])
 
-  const offset = 50
-  const size = 65
-  const thickness = 6
-  const color = 'white'
+  useEffect(() => {
+    if (currentHit.current && !hovered) {
+        setHovered(true)
+        consoleLog("hovered")
+      }
+      if (!currentHit.current && hovered) {
+        setHovered(false)
+        consoleLog("stop hovered")
+      }
 
-  const distance = 90
-  const crosshairThickness = 4
-  const crosshairSize = distance * 0.4
-  const squareLength = distance * 0.35
+  },[currentHit, hovered])
+
+  useEffect(() => {
+    let frameId = 0
+    const durationMs = 3200
+
+    // distance = currentHit.current === null ? 70 : 90
+
+    
+    const animate = () => {
+      const progress = (performance.now() % durationMs) / durationMs
+      const opacity = (Math.sin(progress * Math.PI * 2 - Math.PI / 2) + 1) / 2
+      setRecordDotOpacity(opacity)
+      frameId = requestAnimationFrame(animate)
+    }
+
+    frameId = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(frameId)
+  }, [])
+
+  
 
   return (
     <Fullscreen
-      distanceToCamera={10}
+      distanceToCamera={1}
       depthTest={false}
       pointerEvents="none"
       zIndex={99}
@@ -128,7 +165,7 @@ export default function CameraOverlay() {
       />
 
       {/* Center Square */}
-      <Div positionType="absolute" width={distance} height={distance} positionTop={'50%'} positionLeft={'50%'} transformTranslateX={'-50%'} transformTranslateY={'-50%'}>
+      <Div positionType="absolute" width={hovered ? distance * 0.8 : distance} height={hovered ? distance * 0.8 : distance} positionTop={'50%'} positionLeft={'50%'} transformTranslateX={'-50%'} transformTranslateY={'-50%'}>
         <Div positionType="relative" width="100%" height="100%"> 
            {/* top-left */}
       <Div
@@ -206,7 +243,7 @@ export default function CameraOverlay() {
       </Div>
       {/* Decor */}
       <Div positionType={"absolute"} display={"flex"} flexDirection={"row"} alignItems={"center"} positionTop={offset + 20} positionLeft={offset + 20}  >
-        <Div width={20} height={20} backgroundColor="red" borderRadius={10} />
+        <Div width={20} height={20} backgroundColor="red" borderRadius={10} opacity={recordDotOpacity} />
         <Text color="white" fontSize={18} marginLeft={5}>Rec</Text>
       </Div>
 
