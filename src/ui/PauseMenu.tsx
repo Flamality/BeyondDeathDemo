@@ -1,50 +1,47 @@
-import { Container, Fullscreen, Text } from "@react-three/uikit";
-import React, { useEffect } from "react";
-import { usePlayerData } from "../context/PlayerData";
-import MenuButton from "./components/MenuButton";
+import { useEffect } from 'react';
+import { usePlayerData } from '../context/PlayerData';
 
 export default function PauseMenu() {
-  const { paused, setPaused, cameraController, setInMenu} = usePlayerData();
+  const { paused, setPaused, setInMenu, setMenuPanel, menuPanel } =
+    usePlayerData();
 
   useEffect(() => {
-    if (paused && cameraController.current) {
-      cameraController.current.unlock();
+    if (paused && document.pointerLockElement) {
+      document.exitPointerLock();
     }
   }, [paused]);
 
-  return (
-    <Fullscreen
-      flexDirection='column'
-      alignItems='center'
-      justifyContent='center'
-      gap={20}
-      backgroundColor='rgba(0, 0, 0, 0.8)'
-      visibility={paused ? "visible" : "hidden"}
-      pointerEvents={paused ? "auto" : "none"}
-      distanceToCamera={2}
-      depthTest={false}
-      zIndex={1000}
-    >
-      <Text fontSize={32} color='white' pointerEvents='none'>
-        PAUSED
-      </Text>
+  if (!paused || menuPanel) return null;
 
-      <MenuButton
-        onClick={(e: any) => {
-          e.stopPropagation();
-          setPaused(false);
-          cameraController.current?.setPaused(false);
-        }}
-      >
-        Resume
-      </MenuButton>
-      <MenuButton onClick={() => {
-        setInMenu(true);
-        setPaused(false);
-        cameraController.current?.setPaused(false);
-        }}>
-        Main Menu
-      </MenuButton>
-    </Fullscreen>
+  return (
+    <div className="pause-menu viewfinder-menu">
+      <div className="viewfinder-corner top-left" />
+      <div className="viewfinder-corner top-right" />
+      <div className="viewfinder-corner bottom-left" />
+      <div className="viewfinder-corner bottom-right" />
+      <div className="viewfinder-rec">
+        <span />
+        PAUSE
+      </div>
+      <div className="viewfinder-menu-stack">
+        <h1>PAUSED</h1>
+        <button type="button" onClick={() => setPaused(false)}>
+          Resume
+        </button>
+        <button type="button" onClick={() => setMenuPanel('settings')}>
+          Settings
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setPaused(false);
+            setMenuPanel(null);
+            setInMenu(true);
+          }}
+        >
+          Main Menu
+        </button>
+      </div>
+    </div>
   );
 }

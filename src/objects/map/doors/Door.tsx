@@ -1,21 +1,21 @@
-import { Box } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { RigidBody } from "@react-three/rapier";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import * as Three from "three";
+import { Box } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
+import { RigidBody } from '@react-three/rapier';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import * as Three from 'three';
 
-import { useInventory } from "../../../context/Inventory";
-import { useConsole } from "../../../context/Console";
-import { useAudio } from "../../../context/Audio";
+import { useInventory } from '../../../context/Inventory';
+import { useConsole } from '../../../context/Console';
+import { useAudio } from '../../../context/Audio';
 import {
   material_metal_world,
   material_plaster_world,
   material_table_world,
   material_wood_world,
-} from "../../../materials/Textures";
+} from '../../../materials/Textures';
 
-import { eventBus } from "../../../context/Bus.ts";
-import { nameById } from "../items/Props.tsx";
+import { eventBus } from '../../../context/Bus.ts';
+import { nameById } from '../items/Props.tsx';
 
 interface DoorProps {
   position: [number, number, number];
@@ -50,7 +50,7 @@ const Door: React.FC<DoorProps> = ({
   const hingeRef = useRef<Three.Group>(null);
 
   useEffect(() => {
-    const unsub = eventBus.on("doorInteract", (payload) => {
+    const unsub = eventBus.on('doorInteract', (payload) => {
       if (!payload?.uuid) return;
       if (payload.uuid === uuidRef.current) {
         toggleDoor();
@@ -58,10 +58,19 @@ const Door: React.FC<DoorProps> = ({
     });
 
     return unsub;
-  }, [doorLocked, Inventory, currentSlot, itemRequired, takeItem, clearCurrentSlot, consoleLog, playSound]);
+  }, [
+    doorLocked,
+    Inventory,
+    currentSlot,
+    itemRequired,
+    takeItem,
+    clearCurrentSlot,
+    consoleLog,
+    playSound,
+  ]);
 
   useEffect(() => {
-    const unsub = eventBus.on("hover", (payload) => {
+    const unsub = eventBus.on('hover', (payload) => {
       if (!payload?.uuid) return;
       if (payload.uuid === uuidRef.current) {
         setHovered(true);
@@ -72,7 +81,7 @@ const Door: React.FC<DoorProps> = ({
   }, []);
 
   useEffect(() => {
-    const unsub = eventBus.on("unhover", (payload) => {
+    const unsub = eventBus.on('unhover', (payload) => {
       if (!payload?.uuid) return;
       if (payload.uuid === uuidRef.current) {
         setHovered(false);
@@ -81,7 +90,6 @@ const Door: React.FC<DoorProps> = ({
 
     return unsub;
   }, []);
-  
 
   useFrame((_, delta) => {
     if (!hingeRef.current) return;
@@ -100,19 +108,23 @@ const Door: React.FC<DoorProps> = ({
     hingeRef.current.rotation.y = Three.MathUtils.lerp(
       hingeRef.current.rotation.y,
       targetY,
-      t
+      t,
     );
   });
 
   const toggleDoor = () => {
     if (!doorLocked) {
       setDoorOpen((prev) => !prev);
-      playSound("door_open");
+      playSound('door_open');
       return;
     }
 
-    if (Inventory[currentSlot] === itemRequired && (itemRequired !== undefined || itemRequired !== null)) {
-      playSound("door_lock");
+    if (
+      Inventory[currentSlot] === itemRequired &&
+      itemRequired !== undefined &&
+      itemRequired !== null
+    ) {
+      playSound('door_lock');
       setDoorLocked(false);
 
       if (takeItem) {
@@ -122,8 +134,9 @@ const Door: React.FC<DoorProps> = ({
       return;
     }
 
-    playSound("door_locked");
-    const itemName = nameById[itemRequired?.toLowerCase() || ""] || "required item";
+    playSound('door_locked');
+    const itemName =
+      nameById[itemRequired?.toLowerCase() || ''] || 'required item';
     consoleLog(`Door is locked. You need ${itemName} to open it.`);
   };
 
@@ -149,33 +162,45 @@ const Door: React.FC<DoorProps> = ({
       </RigidBody>
 
       {/* WALL */}
-      <RigidBody type="fixed" colliders="cuboid" position={[0, HEIGHT + (5 - HEIGHT) / 2, 0]}
-      
+      <RigidBody
+        type="fixed"
+        colliders="cuboid"
+        position={[0, HEIGHT + (5 - HEIGHT) / 2, 0]}
       >
-        <Box args={[2, 5 - HEIGHT, 0.4]} material={material_plaster_world}>
-        </Box>
+        <Box
+          args={[2, 5 - HEIGHT, 0.4]}
+          material={material_plaster_world}
+        ></Box>
       </RigidBody>
 
-    {/* DOOR */}
-    <group position={[-WIDTH / 2, HEIGHT / 2, 0]} ref={hingeRef}>
+      {/* DOOR */}
+      <group position={[-WIDTH / 2, HEIGHT / 2, 0]} ref={hingeRef}>
         <Box
           args={[WIDTH, HEIGHT, THICKNESS]}
           position={[WIDTH / 2, 0, 0]}
           material={material_metal_world}
           userData={{
             clickRoot: true,
-            name: "door",
+            name: 'door',
             uuid: uuidRef.current,
-            type: "door",
+            type: 'door',
             hovered,
           }}
         />
       </group>
 
       {!doorOpen && (
-        <RigidBody type="fixed" colliders="cuboid" position={[0, HEIGHT / 2, 0]}>
-          <Box args={[WIDTH, HEIGHT, THICKNESS]} visible={true} >
-            <meshStandardMaterial color="transparent" opacity={0} transparent={true} />
+        <RigidBody
+          type="fixed"
+          colliders="cuboid"
+          position={[0, HEIGHT / 2, 0]}
+        >
+          <Box args={[WIDTH, HEIGHT, THICKNESS]} visible={true}>
+            <meshStandardMaterial
+              color="transparent"
+              opacity={0}
+              transparent={true}
+            />
           </Box>
         </RigidBody>
       )}

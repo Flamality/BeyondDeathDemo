@@ -1,46 +1,45 @@
-import { Fullscreen, Text } from "@react-three/uikit";
-
-import {usePlayerData} from "../context/PlayerData";
-import MenuButton from "./components/MenuButton";
+import { usePlayerData } from "../context/PlayerData";
+import { useItems } from "../context/Items";
 
 export default function MainMenu() {
-    const {inMenu, setInMenu} = usePlayerData();
+  const { inMenu, startGame, setMenuPanel, menuPanel } = usePlayerData();
+  const { updateMap } = useItems();
 
+  if (!inMenu || menuPanel) return null;
 
-    if (!inMenu) return null;
+  const play = () => {
+    updateMap();
+    startGame();
+  };
+
   return (
-    <>
-  
-
-    {/* <mesh position={[-5, 0, -5]}>
-        <boxGeometry args={[10, 0.1, 10]} />
-        <meshStandardMaterial color="#ffffff" />
-     </mesh> */}
-         <Fullscreen
-      flexDirection='column'
-      alignItems='center'
-      justifyContent='center'
-      gap={20}
-      distanceToCamera={2}
-      depthTest={false}
-      zIndex={1000}
-      pointerEvents='auto'
-          >
-      <Text fontSize={32} color='white' pointerEvents='none'>
-        Beyond Death
-      </Text>
-      <MenuButton onClick={() => {
-        setInMenu(false);
-      }}>
-        Play
-      </MenuButton>
-
-       <MenuButton onClick={() => {
-        setInMenu(false);
-      }}>
-        Settings
-      </MenuButton>
-    </Fullscreen>
-    </>
+    <div className="main-menu viewfinder-menu">
+      <div className="viewfinder-corner top-left" />
+      <div className="viewfinder-corner top-right" />
+      <div className="viewfinder-corner bottom-left" />
+      <div className="viewfinder-corner bottom-right" />
+      <div className="viewfinder-rec">
+        <span />
+        MENU
+      </div>
+      <div className="viewfinder-time">00:00:00</div>
+      <div className="main-menu-scene" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="viewfinder-menu-stack">
+        <img className="main-menu-logo" src="/assets/BeyondDeathLongTransparent.png" alt="Beyond Death" />
+        <button type="button" onClick={play}>
+          Play
+        </button>
+        <button type="button" onClick={() => setMenuPanel("settings")}>
+          Settings
+        </button>
+        <button type="button" onClick={() => setMenuPanel("credits")}>
+          Credits
+        </button>
+      </div>
+    </div>
   );
 }

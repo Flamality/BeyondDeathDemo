@@ -1,14 +1,14 @@
-import { useMemo } from "react";
-import { RigidBody } from "@react-three/rapier";
-import * as THREE from "three";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { material_concrete_world } from "../../materials/Textures";
+import { useMemo } from 'react';
+import { RigidBody } from '@react-three/rapier';
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { material_concrete_world } from '../../materials/Textures';
 const width = 8;
 const depth = 8;
 export default function Baseplate() {
   const geometry = useMemo(() => {
     const r223 = new THREE.BoxGeometry(8, 1, 10);
-    r223.translate(4,0,5);
+    r223.translate(4, 0, 5);
 
     const r224 = new THREE.BoxGeometry(8, 1, 10);
     r224.translate(-8, 0, 5);

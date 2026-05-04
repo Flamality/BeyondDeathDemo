@@ -1,121 +1,293 @@
-import React, { useEffect, useState } from 'react'
-import { getItemComponent, itemById } from '../objects/map/items/Props';
+import { Html } from '@react-three/drei';
+import { useFrame, useThree } from '@react-three/fiber';
+import { useRapier } from '@react-three/rapier';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import * as THREE from 'three';
 import { useConsole } from '../context/Console';
 import { useItems } from '../context/Items';
+import { useMapEditor, type OpeningKind } from '../context/MapEditor';
+import { getItemComponent, itemById } from '../objects/map/items/Props';
 
+type DevMode = 'prop' | 'wall' | 'door' | 'window' | 'broken';
 
+const modes: DevMode[] = ['prop', 'wall', 'door', 'window', 'broken'];
+const maxPlaceDistance = 8;
+const snap = 0.25;
 
-export default function Dev_placepreview() {
-    const { rawItems, setRawItems, updateMap} = useItems();
-    const [snap, setSnap] = useState<number | null>(0.1);
+function snapValue(value: number) {
+  return Math.round(value / snap) * snap;
+}
 
-    const [rotSnap , setRotSnap] = useState<number | null>(1);
+function getYawDegrees(camera: THREE.Camera) {
+  const direction = new THREE.Vector3();
+  camera.getWorldDirection(direction);
+  return Math.abs(direction.x) > Math.abs(direction.z) ? 90 : 0;
+}
 
-    const [pos, setPos] = useState([0, 0, 0]);
-    const [rot, setRot] = useState([0, 0, 0]);
+function getWallSize(
+  mode: DevMode,
+  yaw: number,
+  length: number,
+): { width: number; length: number } {
+  const openingWidth = mode === 'door' ? 2 : mode === 'window' ? 1.8 : 2.3;
+  const wallLength =
+    mode === 'wall' ? length : Math.max(length, openingWidth + 1.2);
 
-    const [rotAxis, setRotAxis] = useState(1);
-    const [mode, setMode] = useState("1"); 
-    // 0 = none, 1 = place, 2=delete
+  return yaw === 0
+    ? { width: wallLength, length: 0.4 }
+    : { width: 0.4, length: wallLength };
+}
 
-    const [currentItem, setCurrentItem] = useState("bed");
-    const [Icomponent, setComponent] = useState<React.ComponentType<any> | null>(null);
+function getOpening(mode: OpeningKind) {
+  if (mode === 'door') {
+    return { kind: mode, offset: 0, width: 2, height: 3 };
+  }
 
-    const { consoleLog } = useConsole();
-    useEffect(() => {
-        if (mode === "0") return;
-        if (mode === "2") {
-            
+  if (mode === 'window') {
+    return { kind: mode, offset: 0, width: 1.8, height: 1.4, sill: 1.25 };
+  }
 
-            return
+  return { kind: mode, offset: 0, width: 2.3, height: 3.2 };
+}
+
+export default function DevPlacePreview() {
+  const { camera, gl } = useThree();
+  const { rapier, world } = useRapier();
+  const { rawItems, setRawItems } = useItems();
+  const { addWall, addOpeningWall, clearCustomWalls } = useMapEditor();
+  const { consoleLog } = useConsole();
+
+  const itemIds = useMemo(() => Object.keys(itemById), []);
+  const placementRaycaster = useMemo(() => new THREE.Raycaster(), []);
+  const mouseNdc = useRef(new THREE.Vector2(0, 0));
+  const [enabled, setEnabled] = useState(false);
+  const [mode, setMode] = useState<DevMode>('prop');
+  const [itemIndex, setItemIndex] = useState(() =>
+    Math.max(0, itemIds.indexOf('bed')),
+  );
+  const [rotation, setRotation] = useState(0);
+  const [wallLength, setWallLength] = useState(4);
+  const [placement, setPlacement] = useState<[number, number, number]>([
+    0, 0, 0,
+  ]);
+  const [hitDistance, setHitDistance] = useState(maxPlaceDistance);
+
+  const currentItem = itemIds[itemIndex] ?? 'bed';
+  const ItemComponent = getItemComponent(currentItem);
+
+  useFrame(() => {
+    if (!enabled) return;
+
+    if (document.pointerLockElement === gl.domElement) {
+      mouseNdc.current.set(0, 0);
+    }
+
+    placementRaycaster.setFromCamera(mouseNdc.current, camera);
+    const origin = placementRaycaster.ray.origin.clone();
+    const direction = placementRaycaster.ray.direction.clone().normalize();
+    const ray = new rapier.Ray(origin, direction);
+    const hit = world.castRay(ray, maxPlaceDistance, true);
+    const hitTime = hit ? hit.timeOfImpact : maxPlaceDistance;
+    const distance = Math.max(0.75, hitTime - 0.2);
+    const target = origin.add(direction.multiplyScalar(distance));
+
+    const nextDistance = Math.round(distance * 10) / 10;
+    const nextPlacement: [number, number, number] = [
+      snapValue(target.x),
+      mode === 'prop' ? snapValue(target.y) : 0,
+      snapValue(target.z),
+    ];
+
+    setHitDistance((prev) => (prev === nextDistance ? prev : nextDistance));
+    setPlacement((prev) =>
+      prev[0] === nextPlacement[0] &&
+      prev[1] === nextPlacement[1] &&
+      prev[2] === nextPlacement[2]
+        ? prev
+        : nextPlacement,
+    );
+  });
+
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      const rect = gl.domElement.getBoundingClientRect();
+      mouseNdc.current.set(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -(((e.clientY - rect.top) / rect.height) * 2 - 1),
+      );
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    return () => window.removeEventListener('pointermove', handlePointerMove);
+  }, [gl]);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        setMode((prev) => modes[(modes.indexOf(prev) + 1) % modes.length]);
+        return;
+      }
+
+      if (e.key === '[') {
+        setItemIndex((prev) => (prev - 1 + itemIds.length) % itemIds.length);
+      }
+
+      if (e.key === ']') {
+        setItemIndex((prev) => (prev + 1) % itemIds.length);
+      }
+
+      if (e.key.toLowerCase() === 'r') {
+        setRotation((prev) => (prev + 90) % 360);
+      }
+
+      if (e.key === '=' || e.key === '+') {
+        setWallLength((prev) => Math.min(20, prev + 0.5));
+      }
+
+      if (e.key === '-' || e.key === '_') {
+        setWallLength((prev) => Math.max(1, prev - 0.5));
+      }
+
+      if (e.key === 'Backspace') {
+        clearCustomWalls();
+        consoleLog('Cleared dev-placed wall/opening pieces.');
+      }
+
+      if (e.key === 'Enter') {
+        if (mode === 'prop') {
+          const nextItems = [
+            ...rawItems,
+            {
+              item: currentItem,
+              pos: placement,
+              rot: [0, rotation, 0],
+            },
+          ];
+
+          setRawItems(nextItems);
+          navigator.clipboard
+            ?.writeText(JSON.stringify(nextItems))
+            .catch(() => undefined);
+          consoleLog(
+            `Placed ${currentItem} at [${placement.map((v) => v.toFixed(2)).join(', ')}].`,
+          );
+          return;
         }
-        // consoleLog("Pos: [" + pos[0].toPrecision(2) + ", " + pos[1].toPrecision(2) + ", " + pos[2].toPrecision(2) + "]");
-        // consoleLog("Rot: [" + rot[0].toPrecision(2) + ", " + rot[1].toPrecision(2) + ", " + rot[2].toPrecision(2) + "]");
-        const handleButtonClick = (e: any) => {
-            // Move Fowards
-            if (e.key === "ArrowUp") {
-                setPos([pos[0] - (snap || 0.2), pos[1], pos[2]]);
-            }
-            // Move Backwards
-            if (e.key === "ArrowDown") {
-                setPos([pos[0] + (snap || 0.2), pos[1], pos[2]]);
-            }
-            // Move Left
-            if (e.key === "ArrowLeft") {
-                setPos([pos[0], pos[1], pos[2] + (snap || 0.2)]);
-            }
-            // Move Right
-            if (e.key === "ArrowRight") {
-                setPos([pos[0], pos[1], pos[2] - (snap || 0.2)]);
-            }
-            // Rotate Clockwise
-            if (e.key === "r") {
-                const newRot = [...rot];
-                newRot[rotAxis] += rotSnap || 15;
-                setRot(newRot);
-            }
-            // Rotate Counter Clockwise
-            if (e.key === "f") {
-                const newRot = [...rot];
-                newRot[rotAxis] -= rotSnap || 15;
-                setRot(newRot);
-            }
-            // Change Rotation Axis
-            if (e.key === "g") {
-                setRotAxis((rotAxis + 1) % 3);
-            }
-            // Move Up
-            if (e.key === "o") {
-                setPos([pos[0], pos[1] + (snap || 0.2), pos[2]]);
-            }
-            // Move Down
-            if (e.key === "l") {
-                setPos([pos[0], pos[1] - (snap || 0.2), pos[2]]);
-            }
-            // Change Object
-            if (e.key === "p") {
-                const i = Object.keys(itemById).indexOf(currentItem);
-                const nextItem = Object.keys(itemById)[(i + 1) % Object.keys(itemById).length];
-                setCurrentItem(nextItem);
-                const ItemComponent = getItemComponent(nextItem);
-                if (ItemComponent) {
-                    setComponent(() => ItemComponent);
-                }
-            }
 
-            if (e.key ==="m") {
-                setMode((parseInt(mode) + 1) % 3 + "");
-            }
+        const yaw = mode === 'wall' ? rotation : getYawDegrees(camera);
+        const size = getWallSize(mode, yaw, wallLength);
+        const wall = { position: placement, ...size };
 
-            if (e.key === "Enter") {
-                const temp = rawItems;
-                temp.push({
-                    "item": currentItem,
-                    "pos": pos,
-                    "rot": rot,
-                })
-                setRawItems(temp);
-                updateMap();
-                navigator.clipboard.writeText(JSON.stringify(temp));
-                consoleLog("Added " + currentItem + " to map at position [" + pos[0].toPrecision(2) + ", " + pos[1].toPrecision(2) + ", " + pos[2].toPrecision(2) + "] with rotation [" + rot[0].toPrecision(2) + ", " + rot[1].toPrecision(2) + ", " + rot[2].toPrecision(2) + "]");
-            }
+        if (mode === 'wall') {
+          addWall(wall);
+          consoleLog(`Placed wall length ${wallLength.toFixed(1)}.`);
+          return;
         }
 
-        document.addEventListener("keydown", handleButtonClick)
-        return () => {
-            document.removeEventListener("keydown", handleButtonClick);
-        }
-    }, [rot,  pos, snap, rotAxis, currentItem])
+        addOpeningWall(wall, getOpening(mode));
+        consoleLog(`Placed ${mode} wall opening.`);
+      }
+    };
 
-    return (
-        <group>
-            {Icomponent && <Icomponent key={"preview__item"} data={{
-                id: "bed",
-                mapId: "preview-bed",
-                position: pos,
-                rotation: rot,
-                noRigid: true,
-            }} />}
-        </group>
-    )
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [
+    addOpeningWall,
+    addWall,
+    camera,
+    clearCustomWalls,
+    consoleLog,
+    currentItem,
+    enabled,
+    itemIds.length,
+    mode,
+    placement,
+    rawItems,
+    rotation,
+    setRawItems,
+    wallLength,
+  ]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F1') {
+        e.preventDefault();
+        setEnabled((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  if (!enabled) return null;
+
+  const previewYaw = mode === 'wall' ? rotation : getYawDegrees(camera);
+  const previewSize = getWallSize(mode, previewYaw, wallLength);
+
+  return (
+    <>
+      <group
+        position={placement}
+        rotation={[
+          0,
+          THREE.MathUtils.degToRad(mode === 'prop' ? rotation : 0),
+          0,
+        ]}
+      >
+        {mode === 'prop' && ItemComponent && (
+          <ItemComponent
+            data={{
+              id: currentItem,
+              mapId: 'dev-preview',
+              position: [0, 0, 0],
+              rotation: [0, 0, 0],
+              noRigid: true,
+              noColliders: true,
+            }}
+          />
+        )}
+
+        {mode !== 'prop' && (
+          <mesh rotation={[0, THREE.MathUtils.degToRad(previewYaw), 0]}>
+            <boxGeometry args={[previewSize.width, 5, previewSize.length]} />
+            <meshStandardMaterial
+              color={
+                mode === 'wall'
+                  ? '#aeb4b8'
+                  : mode === 'door'
+                    ? '#5577aa'
+                    : mode === 'window'
+                      ? '#6aaecf'
+                      : '#b27a6a'
+              }
+              transparent
+              opacity={0.42}
+            />
+          </mesh>
+        )}
+
+        <Html
+          position={[0, 1.8, 0]}
+          center
+          distanceFactor={7}
+          pointerEvents="none"
+        >
+          <div className="dev-place-hud">
+            <strong>Dev Place</strong>
+            <span>F1 toggle</span>
+            <span>Tab {mode}</span>
+            <span>[ ] {currentItem}</span>
+            <span>R {rotation}</span>
+            <span>+/- {wallLength.toFixed(1)}</span>
+            <span>{hitDistance.toFixed(1)}m</span>
+            <span>Enter</span>
+          </div>
+        </Html>
+      </group>
+    </>
+  );
 }

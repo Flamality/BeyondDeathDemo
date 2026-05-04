@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
-import { useThree, useFrame } from "@react-three/fiber";
-import * as THREE from "three";
+import { useEffect, useRef } from 'react';
+import { useThree, useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
+import { useSettings } from '../context/Settings';
 
 type MouseLookProps = {
   enabled?: boolean;
@@ -16,6 +17,7 @@ export default function PlayerCamera({
   fov = 80,
 }: MouseLookProps) {
   const { camera, gl } = useThree();
+  const { mouseSensitivity } = useSettings();
 
   const targetFov = useRef(fov);
 
@@ -28,7 +30,7 @@ export default function PlayerCamera({
   useEffect(() => {
     const canvas = gl.domElement;
 
-    const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, "YXZ");
+    const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
     yaw.current = euler.y;
     pitch.current = euler.x;
     targetYaw.current = euler.y;
@@ -42,7 +44,6 @@ export default function PlayerCamera({
         if (anyCanvas.requestPointerLock) {
           await anyCanvas.requestPointerLock({
             unadjustedMovement: true,
-
           });
         }
       } catch {
@@ -57,14 +58,11 @@ export default function PlayerCamera({
       const dx = e.movementX ?? 0;
       const dy = e.movementY ?? 0;
 
-      // reject cursed spikes
       const maxDelta = 100;
       if (Math.abs(dx) > maxDelta || Math.abs(dy) > maxDelta) return;
 
-      const sensitivity = 0.0025;
-
-      targetYaw.current -= dx * sensitivity;
-      targetPitch.current -= dy * sensitivity;
+      targetYaw.current -= dx * mouseSensitivity;
+      targetPitch.current -= dy * mouseSensitivity;
 
       const pitchLimit = Math.PI / 2 - 0.01;
       targetPitch.current = THREE.MathUtils.clamp(
@@ -80,26 +78,27 @@ export default function PlayerCamera({
       }
     };
 
-    canvas.addEventListener("click", lockPointer);
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("pointerlockchange", handlePointerLockChange);
+    canvas.addEventListener('click', lockPointer);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('pointerlockchange', handlePointerLockChange);
 
     return () => {
-      canvas.removeEventListener("click", lockPointer);
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("pointerlockchange", handlePointerLockChange);
+      canvas.removeEventListener('click', lockPointer);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener(
+        'pointerlockchange',
+        handlePointerLockChange,
+      );
     };
-  }, [camera, gl, enabled, paused, onUnlock]);
+  }, [camera, gl, enabled, paused, onUnlock, mouseSensitivity]);
 
   useEffect(() => {
     targetFov.current = fov;
   }, [fov]);
 
-
   useFrame((_, delta) => {
     if (!enabled || paused) return;
 
-    // light smoothing so it feels nicer, not mushy
     const smooth = Math.min(1, delta * 20);
 
     yaw.current = THREE.MathUtils.lerp(yaw.current, targetYaw.current, smooth);
@@ -110,12 +109,12 @@ export default function PlayerCamera({
     );
 
     camera.quaternion.setFromEuler(
-      new THREE.Euler(pitch.current, yaw.current, 0, "YXZ"),
+      new THREE.Euler(pitch.current, yaw.current, 0, 'YXZ'),
     );
 
-     const cam = camera as THREE.PerspectiveCamera;
-      cam.fov = THREE.MathUtils.lerp(cam.fov, targetFov.current, delta * 10);
-      cam.updateProjectionMatrix();
+    const cam = camera as THREE.PerspectiveCamera;
+    cam.fov = THREE.MathUtils.lerp(cam.fov, targetFov.current, delta * 10);
+    cam.updateProjectionMatrix();
   });
 
   return null;

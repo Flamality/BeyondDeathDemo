@@ -25,23 +25,24 @@ export default function Flashlight() {
 
   useEffect(() => {
     const g = group.current;
+    const sceneObject = scene as any;
 
-    scene.add(g);
+    sceneObject.add(g);
 
-    g.add(innerTarget.current);
-    g.add(midTarget.current);
-    g.add(outerTarget.current);
+    g.add(innerTarget.current as any);
+    g.add(midTarget.current as any);
+    g.add(outerTarget.current as any);
 
-    innerLight.current.target = innerTarget.current;
-    midLight.current.target = midTarget.current;
-    outerLight.current.target = outerTarget.current;
+    innerLight.current.target = innerTarget.current as any;
+    midLight.current.target = midTarget.current as any;
+    outerLight.current.target = outerTarget.current as any;
 
     innerTarget.current.position.set(0, 0, -10);
     midTarget.current.position.set(0, 0, -10);
     outerTarget.current.position.set(0, 0, -10);
 
     return () => {
-      scene.remove(g);
+      sceneObject.remove(g);
     };
   }, [scene]);
 

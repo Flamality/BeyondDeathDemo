@@ -1,23 +1,20 @@
 import { Container as Div, Fullscreen, Text } from '@react-three/uikit'
 import React, { useEffect, useState } from 'react'
 import { useItems } from '../context/Items'
-import { useConsole } from '../context/Console'
-import type { lessThan } from 'three/src/nodes/TSL.js'
 
 export default function CameraOverlay() {
   const [time, setTime] = React.useState<string>('[ Error ]')
   const [recordDotOpacity, setRecordDotOpacity] = React.useState<number>(0)
   const { currentHit } = useItems();
   const [hovered, setHovered] = useState(false);
-  const {consoleLog} = useConsole();
   const offset = 50
-    const size = 65
-    const thickness = 6
+    const size = 66
+    const thickness = 5
     const color = 'white'
 
     let distance = 90
-    const crosshairThickness = 4
-    const crosshairSize = 36
+    const crosshairThickness = 3
+    const crosshairSize = 34
     const squareLength = 31
   useEffect(() => {
     const interval = setInterval(() => {
@@ -31,11 +28,9 @@ export default function CameraOverlay() {
   useEffect(() => {
     if (currentHit.current && !hovered) {
         setHovered(true)
-        consoleLog("hovered")
       }
       if (!currentHit.current && hovered) {
         setHovered(false)
-        consoleLog("stop hovered")
       }
 
   },[currentHit, hovered])
@@ -68,6 +63,11 @@ export default function CameraOverlay() {
       zIndex={99}
       {...{'*': { userSelect: 'none' }} as any} 
     >
+      <Div
+        positionType="absolute"
+        inset={0 as any}
+        backgroundColor="rgba(0, 0, 0, 0.035)"
+      />
       {/* top-left */}
       <Div
         positionType="absolute"
@@ -242,13 +242,17 @@ export default function CameraOverlay() {
 
       </Div>
       {/* Decor */}
-      <Div positionType={"absolute"} display={"flex"} flexDirection={"row"} alignItems={"center"} positionTop={offset + 20} positionLeft={offset + 20}  >
-        <Div width={20} height={20} backgroundColor="red" borderRadius={10} opacity={recordDotOpacity} />
-        <Text color="white" fontSize={18} marginLeft={5}>Rec</Text>
+      <Div positionType={"absolute"} display={"flex"} flexDirection={"row"} alignItems={"center"} positionTop={offset + 18} positionLeft={offset + 28}  >
+        <Div width={14} height={14} backgroundColor="#ff1616" borderRadius={10} opacity={recordDotOpacity} />
+        <Text color="white" fontSize={16} fontWeight={800} marginLeft={8}>REC</Text>
       </Div>
 
-      <Div positionType={"absolute"} display={"flex"} flexDirection={"row"} alignItems={"center"} positionBottom={offset + 10} positionLeft={offset + 10}  >
+      <Div positionType={"absolute"} display={"flex"} flexDirection={"row"} alignItems={"center"} positionBottom={offset + 14} positionLeft={offset + 14}  >
         <Text color="white" fontSize={18} fontWeight={900} marginLeft={5}>{time}</Text>
+      </Div>
+
+      <Div positionType={"absolute"} display={"flex"} flexDirection={"row"} alignItems={"center"} positionBottom={offset + 14} positionRight={offset + 14}  >
+        <Text color="white" fontSize={14} fontWeight={800}>BD-CAM</Text>
       </Div>
     </Fullscreen>
   )

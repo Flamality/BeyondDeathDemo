@@ -1,4 +1,13 @@
-import * as THREE from "three";
+import * as THREE from 'three';
+import ceilingTextureUrl from '../textures/ceiling_interior_diff_4k.jpg';
+import concreteTextureUrl from '../textures/concrete_floor_damaged_01_diff_4k.jpg';
+import fabricTextureUrl from '../textures/curly_teddy_natural_diff_4k.jpg';
+import woodTextureUrl from '../textures/dark_wood_diff_4k.jpg';
+import plasterTextureUrl from '../textures/plastered_wall_03_diff_4k.jpg';
+import metalTextureUrl from '../textures/rusty_metal_04_diff_4k.jpg';
+import metalMapTextureUrl from '../textures/rusty_metal_04_metal_4k.jpg';
+import tableTextureUrl from '../textures/wood_table_worn_diff_4k.jpg';
+import tileTextureUrl from '../textures/worn_tile_floor_diff_4k.jpg';
 
 const loader = new THREE.TextureLoader();
 
@@ -12,7 +21,7 @@ export function makeTiledMaterial(
   baseTexture: THREE.Texture,
   repeatX: number,
   repeatY: number,
-  options: Partial<THREE.MeshStandardMaterialParameters> = {}
+  options: Partial<THREE.MeshStandardMaterialParameters> = {},
 ) {
   const map = baseTexture.clone();
   map.wrapS = THREE.RepeatWrapping;
@@ -31,7 +40,7 @@ export function makeTiledMaterial(
 export function makeTriplanarMaterial(
   baseTexture: THREE.Texture,
   scale = 0.25,
-  options: Partial<THREE.MeshStandardMaterialParameters> = {}
+  options: Partial<THREE.MeshStandardMaterialParameters> = {},
 ) {
   const map = baseTexture.clone();
   map.wrapS = THREE.RepeatWrapping;
@@ -52,28 +61,27 @@ export function makeTriplanarMaterial(
 
     shader.vertexShader =
       `
-      varying vec3 vLocalPosNoScale;
-      varying vec3 vLocalNormal;
-
-      vec3 getObjectScale(mat4 m) {
-        return vec3(
-          length(m[0].xyz),
-          length(m[1].xyz),
-          length(m[2].xyz)
-        );
-      }
+      varying vec3 vTriplanarPos;
+      varying vec3 vTriplanarNormal;
       ` + shader.vertexShader;
 
     shader.vertexShader = shader.vertexShader.replace(
-      "#include <begin_vertex>",
+      '#include <begin_vertex>',
       `
       #include <begin_vertex>
 
-      vec3 objectScale = getObjectScale(modelMatrix);
+      #ifdef USE_INSTANCING
+        vec3 objectOrigin = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        vec3 objectWorldPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+        vTriplanarNormal = normalize(mat3(modelMatrix * instanceMatrix) * objectNormal);
+      #else
+        vec3 objectOrigin = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        vec3 objectWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+        vTriplanarNormal = normalize(mat3(modelMatrix) * objectNormal);
+      #endif
 
-      vLocalPosNoScale = position / max(objectScale, vec3(0.0001));
-      vLocalNormal = normalize(normal);
-      `
+      vTriplanarPos = objectWorldPos - objectOrigin;
+      `,
     );
 
     shader.fragmentShader =
@@ -81,22 +89,22 @@ export function makeTriplanarMaterial(
       uniform sampler2D triplanarMap;
       uniform float triplanarScale;
 
-      varying vec3 vLocalPosNoScale;
-      varying vec3 vLocalNormal;
+      varying vec3 vTriplanarPos;
+      varying vec3 vTriplanarNormal;
 
       vec4 sampleTriplanar(
         sampler2D tex,
-        vec3 localPosNoScale,
-        vec3 localNormal,
+        vec3 triplanarPos,
+        vec3 triplanarNormal,
         float scale
       ) {
-        vec3 blend = abs(normalize(localNormal));
+        vec3 blend = abs(normalize(triplanarNormal));
         blend = pow(blend, vec3(4.0));
         blend /= max(dot(blend, vec3(1.0)), 0.0001);
 
-        vec2 uvX = localPosNoScale.yz * scale;
-        vec2 uvY = localPosNoScale.xz * scale;
-        vec2 uvZ = localPosNoScale.xy * scale;
+        vec2 uvX = triplanarPos.yz * scale;
+        vec2 uvY = triplanarPos.xz * scale;
+        vec2 uvZ = triplanarPos.xy * scale;
 
         vec4 xTex = texture2D(tex, uvX);
         vec4 yTex = texture2D(tex, uvY);
@@ -107,52 +115,80 @@ export function makeTriplanarMaterial(
       ` + shader.fragmentShader;
 
     shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <map_fragment>",
+      '#include <map_fragment>',
       `
       #ifdef USE_MAP
         vec4 sampledDiffuseColor = sampleTriplanar(
           triplanarMap,
-          vLocalPosNoScale,
-          vLocalNormal,
+          vTriplanarPos,
+          vTriplanarNormal,
           triplanarScale
         );
         diffuseColor *= sampledDiffuseColor;
       #endif
-      `
+      `,
     );
   };
 
-  material.customProgramCacheKey = () => `triplanar-object-aligned-worldscale-${scale}`;
+  material.customProgramCacheKey = () =>
+    `triplanar-object-relative-world-units-${scale}`;
   material.needsUpdate = true;
 
   return material;
 }
 
 /* TEXTURES */
-export const wood_diff = loader.load("/textures/dark_wood_diff_4k.jpg", setupTexture);
+export const wood_diff = loader.load(
+  woodTextureUrl,
+  setupTexture,
+);
 wood_diff.colorSpace = THREE.SRGBColorSpace;
 
-export const concrete_diff = loader.load("/textures/concrete_floor_damaged_01_diff_4k.jpg", setupTexture);
+export const concrete_diff = loader.load(
+  concreteTextureUrl,
+  setupTexture,
+);
 concrete_diff.colorSpace = THREE.SRGBColorSpace;
 
-export const table_diff = loader.load("/textures/wood_table_worn_diff_4k.jpg", setupTexture);
+export const table_diff = loader.load(
+  tableTextureUrl,
+  setupTexture,
+);
 table_diff.colorSpace = THREE.SRGBColorSpace;
 
-export const plaster_diff = loader.load("/textures/plastered_wall_03_diff_4k.jpg", setupTexture);
+export const plaster_diff = loader.load(
+  plasterTextureUrl,
+  setupTexture,
+);
 plaster_diff.colorSpace = THREE.SRGBColorSpace;
 
-export const metal_diff = loader.load("/textures/rusty_metal_04_diff_4k.jpg", setupTexture);
+export const metal_diff = loader.load(
+  metalTextureUrl,
+  setupTexture,
+);
 metal_diff.colorSpace = THREE.SRGBColorSpace;
 
-export const metal_metal = loader.load("/textures/rusty_metal_04_metal_4k.jpg", setupTexture);
+export const metal_metal = loader.load(
+  metalMapTextureUrl,
+  setupTexture,
+);
 
-export const fabric_diff = loader.load("/textures/curly_teddy_natural_diff_4k.jpg", setupTexture);
+export const fabric_diff = loader.load(
+  fabricTextureUrl,
+  setupTexture,
+);
 fabric_diff.colorSpace = THREE.SRGBColorSpace;
 
-export const ceiling_diff = loader.load("/textures/ceiling_interior_diff_4k.jpg", setupTexture);
+export const ceiling_diff = loader.load(
+  ceilingTextureUrl,
+  setupTexture,
+);
 ceiling_diff.colorSpace = THREE.SRGBColorSpace;
 
-export const tile_diff = loader.load("/textures/worn_tile_floor_diff_4k.jpg", setupTexture);
+export const tile_diff = loader.load(
+  tileTextureUrl,
+  setupTexture,
+);
 tile_diff.colorSpace = THREE.SRGBColorSpace;
 
 /* NORMAL MATERIALS */
@@ -166,7 +202,10 @@ export const texture_tile = makeTiledMaterial(tile_diff, 2, 2);
 
 /* TRIPLANAR MATERIALS */
 export const material_wood_world = makeTriplanarMaterial(wood_diff, 0.25);
-export const material_concrete_world = makeTriplanarMaterial(concrete_diff, 0.5);
+export const material_concrete_world = makeTriplanarMaterial(
+  concrete_diff,
+  0.5,
+);
 export const material_table_world = makeTriplanarMaterial(table_diff, 0.4);
 export const material_plaster_world = makeTriplanarMaterial(plaster_diff, 0.35);
 export const material_fabric_world = makeTriplanarMaterial(fabric_diff, 0.4);

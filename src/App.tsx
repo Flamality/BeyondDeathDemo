@@ -8,6 +8,49 @@ import { ItemsProvider } from "./context/Items";
 import { PlayerDataProvider } from "./context/PlayerData";
 import Debug from "./components/Debug/Debug";
 import { KeybindsProvider } from "./context/Keybinds";
+import PhotoHud from "./ui/PhotoHud";
+import { MapEditorProvider } from "./context/MapEditor";
+import PauseMenu from "./ui/PauseMenu";
+import MainMenu from "./ui/MainMenu";
+import SafeKeypad from "./ui/SafeKeypad";
+import { usePlayerData } from "./context/PlayerData";
+import { SettingsProvider } from "./context/Settings";
+import SettingsMenu from "./ui/SettingsMenu";
+import CreditsMenu from "./ui/CreditsMenu";
+import LoadingScreen from "./ui/LoadingScreen";
+
+function AppShell() {
+  const { inMenu, gameSessionId } = usePlayerData();
+  const [loading, setLoading] = React.useState(false);
+  const loadingStartedAt = React.useRef(0);
+
+  React.useEffect(() => {
+    if (!inMenu) {
+      loadingStartedAt.current = performance.now();
+      setLoading(true);
+    }
+  }, [gameSessionId, inMenu]);
+
+  const handleEngineReady = React.useCallback(() => {
+    const elapsed = performance.now() - loadingStartedAt.current;
+    window.setTimeout(() => setLoading(false), Math.max(0, 850 - elapsed));
+  }, []);
+
+  return (
+    <>
+      <Debug />
+      <Console />
+      {!inMenu && <Engine key={gameSessionId} onReady={handleEngineReady} />}
+      {loading && <LoadingScreen />}
+      <MainMenu />
+      <PauseMenu />
+      <SettingsMenu />
+      <CreditsMenu />
+      <SafeKeypad />
+      <PhotoHud />
+    </>
+  );
+}
 
 function App() {
   return (
@@ -15,13 +58,15 @@ function App() {
       <ConsoleProvider>
         <PlayerDataProvider>
           <KeybindsProvider>
-            <ItemsProvider>
-              <InventoryProvider>
-                <Debug />
-                <Console />
-                <Engine />
-              </InventoryProvider>
-            </ItemsProvider>
+            <SettingsProvider>
+              <ItemsProvider>
+                <InventoryProvider>
+                  <MapEditorProvider>
+                    <AppShell />
+                  </MapEditorProvider>
+                </InventoryProvider>
+              </ItemsProvider>
+            </SettingsProvider>
             </KeybindsProvider>
           </PlayerDataProvider>
         </ConsoleProvider>
