@@ -1,9 +1,13 @@
 import { useItems } from "../context/Items";
 
-import { getItemComponent } from "../objects/map/items/Props";
+import {
+  getItemComponent,
+  useItemCatalogVersion,
+} from "../objects/map/items/PropCatalog";
 
 export default function ItemEngine() {
-  const { Items, setWorldItems } = useItems();
+  const { Items } = useItems();
+  useItemCatalogVersion();
 
 
   return (

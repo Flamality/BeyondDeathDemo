@@ -67,6 +67,17 @@ function groupPartsByMaterial(parts: PropPart[]): MaterialGroup[] {
   }));
 }
 
+function getPartKey(part: PropPart, index: number) {
+  return [
+    index,
+    part.shape ?? 'box',
+    part.size.join(','),
+    part.position.join(','),
+    (part.rotation ?? [0, 0, 0]).join(','),
+    part.collider === false ? 'no-collider' : 'collider',
+  ].join(':');
+}
+
 function MergedPartMesh({
   boxes,
   material,
@@ -113,7 +124,7 @@ function RenderPartColliders({ parts }: { parts: PropPart[] }) {
         .filter((part) => part.collider !== false)
         .map((part, i) => (
           <CuboidCollider
-            key={i}
+            key={getPartKey(part, i)}
             args={[part.size[0] / 2, part.size[1] / 2, part.size[2] / 2]}
             rotation={part.rotation}
             position={part.position}

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Html, PerspectiveCamera } from "@react-three/drei";
+import { PerspectiveCamera } from "@react-three/drei";
 import {
   RigidBody,
   CapsuleCollider,
@@ -39,13 +39,33 @@ const smoothStep = (value: number) => {
 const introEase = (progress: number, start: number, end: number) =>
   smoothStep((progress - start) / (end - start));
 
+const STANDING_CAPSULE_HALF_HEIGHT = 0.5;
+const CROUCH_CAPSULE_HALF_HEIGHT = 0.1;
+const PLAYER_RADIUS = 0.2;
+const STANDING_EYE_HEIGHT = 1;
+const CROUCH_EYE_HEIGHT = 0.5;
+const STAND_HEADROOM_DISTANCE = STANDING_EYE_HEIGHT - CROUCH_EYE_HEIGHT + 0.35;
+const STAND_CHECK_RADIUS = PLAYER_RADIUS + 0.08;
+
+function isPlayerObject(obj: any) {
+  let current = obj;
+  while (current) {
+    if (current.userData.player) return true;
+    current = current.parent;
+  }
+  return false;
+}
+
 export default function Player() {
   const character = useRef<RapierRigidBody>(null);
-  const {currentHit, changeInCurrentHit, hitDist} = useItems();
+  const { currentHit, changeInCurrentHit, hitDist } = useItems();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const last = useRef<string | null>(null);
   const captureInProgress = useRef(false);
-  const [introActive, setIntroActive] = useState(true);
+  const [hudOpacity, setHudOpacity] = useState(0);
+  const [isCrouching, setIsCrouching] = useState(false);
+  const isCrouchingRef = useRef(false);
+  const wantsCrouch = useRef(false);
   const introStartedAt = useRef<number | null>(null);
   const introAnchor = useRef<{ x: number; y: number; z: number } | null>(null);
   const {
@@ -61,9 +81,37 @@ export default function Player() {
     setRevealingPhotoSecrets,
     safeKeypadOpen,
     menuPanel,
+    introActive,
+    setIntroActive,
   } = usePlayerData();
   const { keybinds } = useSettings();
-  const { gl, scene, camera, invalidate } = useThree()
+  const { gl, scene, camera, invalidate } = useThree();
+
+  useEffect(() => {
+    if (introActive || inMenu) {
+      setHudOpacity(0);
+      return;
+    }
+
+    let frameId = 0;
+    const startedAt = performance.now();
+    const duration = 900;
+
+    const fadeIn = () => {
+      const progress = THREE.MathUtils.clamp(
+        (performance.now() - startedAt) / duration,
+        0,
+        1,
+      );
+      setHudOpacity(smoothStep(progress));
+      if (progress < 1) {
+        frameId = requestAnimationFrame(fadeIn);
+      }
+    };
+
+    frameId = requestAnimationFrame(fadeIn);
+    return () => cancelAnimationFrame(frameId);
+  }, [inMenu, introActive]);
 
   const handleCapture = async () => {
     if (captureInProgress.current || takingImage || inMenu) return;
@@ -84,6 +132,7 @@ export default function Player() {
       });
       invalidate();
 
+      await waitMs(80);
       await waitFrame();
       await waitFrame();
 
@@ -102,18 +151,80 @@ export default function Player() {
       invalidate();
       captureInProgress.current = false;
     }
-
-};
+  };
 
   const moveForward = useRef(0);
   const moveBackward = useRef(0);
   const moveLeft = useRef(0);
   const moveRight = useRef(0);
   const jump = useRef(false);
-  const crouch = useRef(false);
   const jumpDebounce = useRef(false);
   const sprint = useRef(false);
   const picture = useRef(false);
+
+  const setCrouchState = (nextCrouching: boolean) => {
+    isCrouchingRef.current = nextCrouching;
+    setIsCrouching(nextCrouching);
+  };
+
+  const hasStandHeadroom = () => {
+    if (!character.current) return true;
+
+    const pos = character.current.translation();
+    const crouchedTop = pos.y + CROUCH_EYE_HEIGHT + PLAYER_RADIUS;
+    const standingTop = pos.y + STANDING_EYE_HEIGHT + PLAYER_RADIUS;
+    const standVolume = new THREE.Box3(
+      new THREE.Vector3(
+        pos.x - STAND_CHECK_RADIUS,
+        crouchedTop,
+        pos.z - STAND_CHECK_RADIUS,
+      ),
+      new THREE.Vector3(
+        pos.x + STAND_CHECK_RADIUS,
+        standingTop,
+        pos.z + STAND_CHECK_RADIUS,
+      ),
+    );
+
+    let blocked = false;
+    const objectBounds = new THREE.Box3();
+
+    scene.traverse((object) => {
+      if (blocked || isPlayerObject(object)) return;
+      const mesh = object as THREE.Mesh;
+      if (!mesh.visible || !mesh.isMesh || (mesh as THREE.InstancedMesh).isInstancedMesh) return;
+
+      objectBounds.setFromObject(object);
+      if (!objectBounds.isEmpty() && objectBounds.intersectsBox(standVolume)) {
+        blocked = true;
+      }
+    });
+
+    if (blocked) return false;
+
+    const rayOffsets = [
+      [0, 0],
+      [STAND_CHECK_RADIUS, 0],
+      [-STAND_CHECK_RADIUS, 0],
+      [0, STAND_CHECK_RADIUS],
+      [0, -STAND_CHECK_RADIUS],
+    ] as const;
+
+    const upRaycaster = new THREE.Raycaster(
+      new THREE.Vector3(),
+      new THREE.Vector3(0, 1, 0),
+      0,
+      STAND_HEADROOM_DISTANCE,
+    );
+
+    for (const [offsetX, offsetZ] of rayOffsets) {
+      upRaycaster.ray.origin.set(pos.x + offsetX, crouchedTop, pos.z + offsetZ);
+      const hits = upRaycaster.intersectObjects(scene.children, true);
+      if (hits.some((hit) => !isPlayerObject(hit.object))) return false;
+    }
+
+    return true;
+  };
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -126,31 +237,45 @@ export default function Player() {
         return;
       }
 
-      if (paused || inMenu || safeKeypadOpen || menuPanel || introActive) return;
+      if (paused || inMenu || safeKeypadOpen || menuPanel || introActive)
+        return;
       e.preventDefault();
       if (e.code === keybinds.forward) moveForward.current = 1;
       if (e.code === keybinds.backward) moveBackward.current = 1;
       if (e.code === keybinds.left) moveLeft.current = 1;
       if (e.code === keybinds.right) moveRight.current = 1;
-      if (e.code === keybinds.crouch) crouch.current = true;
+      if (e.code === keybinds.crouch) {
+        wantsCrouch.current = true;
+        setCrouchState(true);
+      }
       if (e.code === keybinds.sprint) sprint.current = true;
-      if (e.code === "KeyC") crouch.current = true;
+      if (e.code === "KeyC") {
+        wantsCrouch.current = true;
+        setCrouchState(true);
+      }
       if (e.code === keybinds.jump) {
-          jump.current = true;
-          jumpDebounce.current = false;
+        jump.current = true;
+        jumpDebounce.current = false;
       }
       if (e.code === keybinds.photo) picture.current = true;
     };
     const onKeyUp = (e: KeyboardEvent) => {
-      if (paused || inMenu || safeKeypadOpen || menuPanel || introActive) return;
+      if (paused || inMenu || safeKeypadOpen || menuPanel || introActive)
+        return;
       e.preventDefault();
       if (e.code === keybinds.forward) moveForward.current = 0;
       if (e.code === keybinds.backward) moveBackward.current = 0;
       if (e.code === keybinds.left) moveLeft.current = 0;
       if (e.code === keybinds.right) moveRight.current = 0;
-      if (e.code === keybinds.crouch) crouch.current = false;
+      if (e.code === keybinds.crouch) {
+        wantsCrouch.current = false;
+        if (hasStandHeadroom()) setCrouchState(false);
+      }
       if (e.code === keybinds.sprint) sprint.current = false;
-      if (e.code === "KeyC") crouch.current = false;
+      if (e.code === "KeyC") {
+        wantsCrouch.current = false;
+        if (hasStandHeadroom()) setCrouchState(false);
+      }
       if (e.code === keybinds.jump) {
         jumpDebounce.current = false;
         jump.current = false;
@@ -163,7 +288,16 @@ export default function Player() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [paused, inMenu, setPaused, keybinds, safeKeypadOpen, menuPanel, introActive]);
+  }, [
+    paused,
+    inMenu,
+    setPaused,
+    keybinds,
+    safeKeypadOpen,
+    menuPanel,
+    introActive,
+    scene,
+  ]);
 
   useFrame((state: any, delta: any) => {
     if (!character.current) return;
@@ -210,8 +344,16 @@ export default function Player() {
       const tremor = Math.sin(elapsed * 8.5) * 0.004 * disorientation;
       const anchor = introAnchor.current;
 
-      const floorPos = new THREE.Vector3(anchor.x - 0.44, anchor.y + 0.055 + breath, anchor.z + 0.22);
-      const standingPos = new THREE.Vector3(anchor.x, anchor.y + 1.75, anchor.z);
+      const floorPos = new THREE.Vector3(
+        anchor.x - 0.44,
+        anchor.y + 0.055 + breath,
+        anchor.z + 0.22,
+      );
+      const standingPos = new THREE.Vector3(
+        anchor.x,
+        anchor.y + 1.75,
+        anchor.z,
+      );
       const cameraPos = floorPos.clone().lerp(standingPos, rise);
       cameraPos.y += tremor;
       camera.position.copy(cameraPos);
@@ -241,6 +383,8 @@ export default function Player() {
       perspectiveCamera.updateProjectionMatrix();
 
       if (progress >= 1) {
+        introStartedAt.current = null;
+        introAnchor.current = null;
         setIntroActive(false);
       }
       return;
@@ -278,7 +422,11 @@ export default function Player() {
     // }
 
     // HANDLE SPEED
-    const speed = (sprint.current ? 6 : 2) * (crouch.current ? 0.5 : 1);
+    if (!wantsCrouch.current && isCrouchingRef.current && hasStandHeadroom()) {
+      setCrouchState(false);
+    }
+
+    const speed = (sprint.current ? 6 : 2) * (isCrouchingRef.current ? 0.5 : 1);
     const forward = rot
       .clone()
       .multiplyScalar((moveForward.current - moveBackward.current) * speed);
@@ -287,7 +435,12 @@ export default function Player() {
       .multiplyScalar((moveRight.current - moveLeft.current) * speed);
     const targetVel = forward.add(strafe);
 
-    if (jump.current && Math.abs(character.current.linvel().y) < 0.05 && !crouch.current && !jumpDebounce.current) {
+    if (
+      jump.current &&
+      Math.abs(character.current.linvel().y) < 0.05 &&
+      !isCrouchingRef.current &&
+      !jumpDebounce.current
+    ) {
       jumpDebounce.current = true;
       const currentVel = character.current.linvel();
       character.current.setLinvel(
@@ -306,106 +459,114 @@ export default function Player() {
       true,
     );
 
-   const t = state.clock.getElapsedTime();
-const totalVel = Math.sqrt(
-  currentVel.x * currentVel.x +
-  currentVel.y * currentVel.y +
-  currentVel.z * currentVel.z
-);
+    const t = state.clock.getElapsedTime();
+    const totalVel = Math.sqrt(
+      currentVel.x * currentVel.x +
+        currentVel.y * currentVel.y +
+        currentVel.z * currentVel.z,
+    );
 
-const moveAmount = Math.min(totalVel * 0.15, 1);
+    const moveAmount = Math.min(totalVel * 0.15, 1);
 
-// BOBBING
-const bobSpeed = 8;     // how fast it bobs
-const bobHeight = 0.15; // how high it bobs
+    // BOBBING
+    const bobSpeed = 8; // how fast it bobs
+    const bobHeight = 0.15; // how high it bobs
 
-const bob = Math.sin(t * bobSpeed) * bobHeight * moveAmount;
+    const bob = Math.sin(t * bobSpeed) * bobHeight * moveAmount;
 
-const heightOffset = crouch.current ? 0.5 : 1;
+    const targetHeightOffset = isCrouchingRef.current
+      ? CROUCH_EYE_HEIGHT
+      : STANDING_EYE_HEIGHT;
+    const heightOffset = THREE.MathUtils.lerp(
+      camera.position.y - pos.y - bob,
+      targetHeightOffset,
+      Math.min(1, delta * 18),
+    );
 
-camera.position.set(
-  pos.x,
-  pos.y + bob + heightOffset,
-  pos.z
-);
+    camera.position.set(pos.x, pos.y + bob + heightOffset, pos.z);
 
-// RAYCASTING
-const temp = new THREE.Vector3();
-raycaster.set(
-  state.camera.position,
-  state.camera.getWorldDirection(temp)
-);
+    // RAYCASTING
+    const temp = new THREE.Vector3();
+    raycaster.set(state.camera.position, state.camera.getWorldDirection(temp));
 
-let next: THREE.Object3D | null | any = null;
+    let next: THREE.Object3D | null | any = null;
 
-const hits = raycaster.intersectObjects(state.scene.children, true);
+    const hits = raycaster.intersectObjects(state.scene.children, true);
 
-for (const hit of hits) {
-  const target = getTargetObject(hit.object);
-  if (!target) continue;
-  if (hit.distance > 5) continue;
+    for (const hit of hits) {
+      const target = getTargetObject(hit.object);
+      if (!target) continue;
+      if (hit.distance > 5) continue;
 
-  next = target;
-  break;
-}
+      next = target;
+      break;
+    }
 
-currentHit.current = next;
-hitDist.current = hits.length > 0 ? hits[0].distance : 0;
-  if (last.current !== (currentHit.current ? currentHit.current.userData.uuid : null)) {
+    currentHit.current = next;
+    hitDist.current = hits.length > 0 ? hits[0].distance : 0;
+    if (
+      last.current !==
+      (currentHit.current ? currentHit.current.userData.uuid : null)
+    ) {
       changeInCurrentHit(last.current as any);
-      last.current = currentHit.current ? currentHit.current.userData.uuid : null;
-  }
+      last.current = currentHit.current
+        ? currentHit.current.userData.uuid
+        : null;
+    }
 
-
-  if (picture.current) {
-    handleCapture();
-    picture.current = false;
-  }
-});
-
+    if (picture.current) {
+      handleCapture();
+      picture.current = false;
+    }
+  });
 
   return (
     <>
-        <PerspectiveCamera makeDefault={!inMenu} fov={80} />
+      <PerspectiveCamera makeDefault={!inMenu} fov={80} />
 
-        <RigidBody
-          ref={character}
-          colliders={false}
-          lockRotations
-          enabledRotations={[false, false, false]}
-          friction={0}
-          position={[5, 5, 5]}
-        >
-          {/* UI */}
-          {!takingImage && !inMenu && !introActive && (
-            <>
-              <Inventory />
-              <CameraOverlay />
-            </>
-          )}
-          
-          <CapsuleCollider args={[0.2, crouch.current ? 0.1 : 0.5]} />
-            <PlayerCamera
-              enabled={!inMenu}
-              paused={paused || inMenu || introActive}
-              onUnlock={() => {
-                if (!inMenu) setPaused(true);
-              }}
-              fov={80}
-              />
-
-          <mesh castShadow={false} receiveShadow={false} dispose={null}>
-            <capsuleGeometry args={[0.5, 1.6, 10, 28]} />
-            <meshStandardMaterial color="blue" />
-          </mesh>
-        </RigidBody>
-
-        <Flashlight />
-        {introActive && (
-          <Html fullscreen zIndexRange={[1400, 0]}>
-            <div className="intro-fade" />
-          </Html>
+      <RigidBody
+        ref={character}
+        colliders={false}
+        lockRotations
+        enabledRotations={[false, false, false]}
+        friction={0}
+        position={[5, 5, 5]}
+      >
+        {/* UI */}
+        {!takingImage && !inMenu && !introActive && (
+          <group>
+            <Inventory opacity={hudOpacity} />
+            <CameraOverlay opacity={hudOpacity} />
+          </group>
         )}
+
+        <CapsuleCollider
+          args={[
+            isCrouching ? CROUCH_CAPSULE_HALF_HEIGHT : STANDING_CAPSULE_HALF_HEIGHT,
+            PLAYER_RADIUS,
+          ]}
+        />
+        <PlayerCamera
+          enabled={!inMenu}
+          paused={paused || inMenu || introActive || safeKeypadOpen || !!menuPanel}
+          onUnlock={() => {
+            if (!inMenu && !safeKeypadOpen && !menuPanel) setPaused(true);
+          }}
+          fov={80}
+        />
+
+        <mesh
+          castShadow={false}
+          receiveShadow={false}
+          dispose={null}
+          userData={{ player: true }}
+        >
+          <capsuleGeometry args={[0.5, 1.6, 10, 28]} />
+          <meshStandardMaterial color='blue' />
+        </mesh>
+      </RigidBody>
+
+      <Flashlight />
     </>
   );
 }

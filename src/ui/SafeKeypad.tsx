@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type MouseEvent, type PointerEvent } from "react";
 import { usePlayerData } from "../context/PlayerData";
 
 export default function SafeKeypad() {
@@ -30,24 +30,88 @@ export default function SafeKeypad() {
 
   if (!safeKeypadOpen) return null;
 
+  const blockModalEvent = (
+    e: MouseEvent<HTMLElement> | PointerEvent<HTMLElement>,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const pressButton = (key: string) => (e: PointerEvent<HTMLButtonElement>) => {
+    blockModalEvent(e);
+    pressSafeKey(key);
+  };
+
+  const submitButton = (e: PointerEvent<HTMLButtonElement>) => {
+    blockModalEvent(e);
+    submitSafeKeypad();
+  };
+
+  const closeButton = (e: PointerEvent<HTMLButtonElement>) => {
+    blockModalEvent(e);
+    closeSafeKeypad();
+  };
+
   return (
-    <div className="safe-keypad-backdrop" onPointerDown={(e) => e.stopPropagation()}>
-      <div className="safe-keypad" onPointerDown={(e) => e.stopPropagation()}>
+    <div
+      className='safe-keypad-backdrop'
+      onClick={blockModalEvent}
+      onPointerDown={blockModalEvent}
+    >
+      <div
+        className='safe-keypad'
+        onClick={blockModalEvent}
+        onPointerDown={blockModalEvent}
+      >
         <h2>SAFE</h2>
-        <div className={safeKeypadError ? "safe-keypad-display safe-keypad-display--error" : "safe-keypad-display"}>
+        <div
+          className={
+            safeKeypadError
+              ? "safe-keypad-display safe-keypad-display--error"
+              : "safe-keypad-display"
+          }
+        >
           {safeKeypadCode.padEnd(4, "_")}
         </div>
-        <div className="safe-keypad-grid">
+        <div className='safe-keypad-grid'>
           {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
-            <button key={digit} type="button" onClick={() => pressSafeKey(digit)}>
+            <button
+              key={digit}
+              type='button'
+              onClick={blockModalEvent}
+              onPointerDown={pressButton(digit)}
+            >
               {digit}
             </button>
           ))}
-          <button type="button" onClick={() => pressSafeKey("clear")}>C</button>
-          <button type="button" onClick={() => pressSafeKey("0")}>0</button>
-          <button type="button" onClick={submitSafeKeypad}>OK</button>
+          <button
+            type='button'
+            onClick={blockModalEvent}
+            onPointerDown={pressButton("clear")}
+          >
+            C
+          </button>
+          <button
+            type='button'
+            onClick={blockModalEvent}
+            onPointerDown={pressButton("0")}
+          >
+            0
+          </button>
+          <button
+            type='button'
+            onClick={blockModalEvent}
+            onPointerDown={submitButton}
+          >
+            OK
+          </button>
         </div>
-        <button className="safe-keypad-close" type="button" onClick={closeSafeKeypad}>
+        <button
+          className='safe-keypad-close'
+          type='button'
+          onClick={blockModalEvent}
+          onPointerDown={closeButton}
+        >
           Close
         </button>
       </div>

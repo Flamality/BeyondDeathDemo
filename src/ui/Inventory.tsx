@@ -7,12 +7,17 @@ import {
 } from "@react-three/uikit";
 import { useEffect, useRef } from "react";
 import { useInventory } from "../context/Inventory";
-import { getItemComponent, nameById } from "../objects/map/items/Props";
+import {
+  getItemComponent,
+  getItemName,
+  useItemCatalogVersion,
+} from "../objects/map/items/PropCatalog";
 import { usePlayerData } from "../context/PlayerData";
 
-export default function Inventory() {
+export default function Inventory({ opacity = 1 }: { opacity?: number }) {
   const { camera } = useThree();
   const hand = useRef<any>(null);
+  useItemCatalogVersion();
 
   const { pos, rot } = usePlayerData();
 
@@ -95,6 +100,7 @@ export default function Inventory() {
         distanceToCamera={1}
         gap={0}
         depthTest={false}
+        opacity={opacity}
       >
         {SelectedItemId && (
             <Container
@@ -106,7 +112,7 @@ export default function Inventory() {
               marginBottom={0}
             >
               <Text key={SelectedItemId} color={"#ffffff"} fontWeight={800}>
-                {nameById[SelectedItemId.toLowerCase()]}
+                {getItemName(SelectedItemId)}
               </Text>
             </Container>
           )}

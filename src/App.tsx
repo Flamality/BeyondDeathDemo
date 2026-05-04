@@ -18,9 +18,11 @@ import { SettingsProvider } from "./context/Settings";
 import SettingsMenu from "./ui/SettingsMenu";
 import CreditsMenu from "./ui/CreditsMenu";
 import LoadingScreen from "./ui/LoadingScreen";
+import InteractionOverlay from "./ui/InteractionOverlay";
+import EndingOverlay from "./ui/EndingOverlay";
 
 function AppShell() {
-  const { inMenu, gameSessionId } = usePlayerData();
+  const { inMenu, gameSessionId, introActive } = usePlayerData();
   const [loading, setLoading] = React.useState(false);
   const loadingStartedAt = React.useRef(0);
 
@@ -47,7 +49,14 @@ function AppShell() {
       <SettingsMenu />
       <CreditsMenu />
       <SafeKeypad />
-      <PhotoHud />
+      <EndingOverlay />
+      {!loading && introActive && <div key={gameSessionId} className="intro-fade" />}
+      {!inMenu && !introActive && (
+        <div className="gameplay-ui-fade">
+          <PhotoHud />
+          <InteractionOverlay />
+        </div>
+      )}
     </>
   );
 }

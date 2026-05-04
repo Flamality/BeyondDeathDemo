@@ -1,23 +1,25 @@
-import type { ComponentType } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
-import { Text } from '@react-three/drei';
-import type { ItemsList } from '../../../context/Items';
-import Item from './Item';
-import { eventBus } from '../../../context/Bus';
-import { useInventory } from '../../../context/Inventory';
-import { usePlayerData } from '../../../context/PlayerData';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useFrame } from "@react-three/fiber";
+import { RigidBody } from "@react-three/rapier";
+import * as THREE from "three";
+import { Text } from "@react-three/drei";
+import type { ItemsList } from "../../../context/Items";
+import Item from "./Item";
+import { eventBus } from "../../../context/Bus";
+import { useInventory } from "../../../context/Inventory";
+import { usePlayerData } from "../../../context/PlayerData";
+import { replaceItemCatalog } from "./PropRuntime";
 import {
   material_fabric_world,
   material_metal_world,
   material_plaster_world,
   material_table_world,
   material_wood_world,
-} from '../../../materials/Textures';
-import { ProceduralProp } from './PropUtils';
+} from "../../../materials/Textures";
+import { ProceduralProp } from "./PropUtils";
 
 const material_transparent = new THREE.MeshStandardMaterial({
-  color: 'white',
+  color: "white",
   transparent: true,
   opacity: 0.5,
 });
@@ -32,30 +34,32 @@ type PropPart = {
   castShadow?: boolean;
   receiveShadow?: boolean;
   noColliders?: boolean;
-  shape?: 'box' | 'cylinder' | 'sphere';
+  shape?: "box" | "cylinder" | "sphere";
   rotation?: Vec3;
 };
 
 /* ----------------------------- SHARED / TEST MATERIALS ---------------------------- */
 
-const blueMaterial = new THREE.MeshStandardMaterial({ color: 'blue' });
-const greenMaterial = new THREE.MeshStandardMaterial({ color: 'green' });
+const blueMaterial = new THREE.MeshStandardMaterial({ color: "blue" });
+const greenMaterial = new THREE.MeshStandardMaterial({ color: "green" });
 const ceramicMaterial = new THREE.MeshStandardMaterial({
-  color: '#d8d5c8',
+  color: "#d8d5c8",
   roughness: 0.72,
 });
 const darkRubberMaterial = new THREE.MeshStandardMaterial({
-  color: '#111111',
+  color: "#111111",
   roughness: 0.85,
-});
-const signMaterial = new THREE.MeshStandardMaterial({
-  color: '#25282b',
-  roughness: 0.55,
 });
 const glassMaterial = new THREE.MeshStandardMaterial({
   metalness: 1,
   roughness: 0,
-  color: '#3a3a3a',
+  color: "#3a3a3a",
+});
+
+const transparentMaterial = new THREE.MeshStandardMaterial({
+  color: "white",
+  transparent: true,
+  opacity: 0,
 });
 
 /* -------------------------------- PROP DATA -------------------------------- */
@@ -106,14 +110,14 @@ const WHEELCHAIR_PARTS: PropPart[] = [
     position: [-0.62, 0.48, 0],
     rotation: [0, 0, Math.PI / 2],
     material: darkRubberMaterial,
-    shape: 'cylinder',
+    shape: "cylinder",
   },
   {
     size: [0.62, 0.05, 0.62],
     position: [-0.62, 0.48, 0],
     rotation: [0, 0, Math.PI / 2],
     material: material_metal_world,
-    shape: 'cylinder',
+    shape: "cylinder",
     collider: false,
   },
   {
@@ -121,14 +125,14 @@ const WHEELCHAIR_PARTS: PropPart[] = [
     position: [0.62, 0.48, 0],
     rotation: [0, 0, Math.PI / 2],
     material: darkRubberMaterial,
-    shape: 'cylinder',
+    shape: "cylinder",
   },
   {
     size: [0.62, 0.05, 0.62],
     position: [0.62, 0.48, 0],
     rotation: [0, 0, Math.PI / 2],
     material: material_metal_world,
-    shape: 'cylinder',
+    shape: "cylinder",
     collider: false,
   },
   {
@@ -136,14 +140,14 @@ const WHEELCHAIR_PARTS: PropPart[] = [
     position: [-0.48, 0.14, 0.75],
     rotation: [0, 0, Math.PI / 2],
     material: darkRubberMaterial,
-    shape: 'cylinder',
+    shape: "cylinder",
   },
   {
     size: [0.28, 0.05, 0.28],
     position: [0.48, 0.14, 0.75],
     rotation: [0, 0, Math.PI / 2],
     material: darkRubberMaterial,
-    shape: 'cylinder',
+    shape: "cylinder",
   },
   {
     size: [1.05, 0.12, 0.82],
@@ -258,7 +262,7 @@ const STAIR_PARTS: PropPart[] = [
     size: [3, 0.2, 11.3085],
     position: [1.5, 0.2, 0],
     rotation: [-21.8 * (Math.PI / 180), 0, 0],
-    material: material_transparent,
+    material: transparentMaterial,
   },
 ];
 
@@ -467,13 +471,13 @@ const SINK_PARTS: PropPart[] = [
     size: [0.1, 0.08, 0.1],
     position: [-0.32, 1.1, -0.14],
     material: material_metal_world,
-    shape: 'cylinder',
+    shape: "cylinder",
   },
   {
     size: [0.1, 0.08, 0.1],
     position: [0.32, 1.1, -0.14],
     material: material_metal_world,
-    shape: 'cylinder',
+    shape: "cylinder",
   },
 ];
 
@@ -482,13 +486,13 @@ const TOILET_PARTS: PropPart[] = [
     size: [0.78, 0.48, 0.92],
     position: [0, 0.38, 0.12],
     material: ceramicMaterial,
-    shape: 'cylinder',
+    shape: "cylinder",
   },
   {
     size: [0.48, 0.24, 0.58],
     position: [0, 0.48, 0.12],
     material: darkRubberMaterial,
-    shape: 'cylinder',
+    shape: "cylinder",
   },
   {
     size: [0.84, 0.16, 0.98],
@@ -576,13 +580,7 @@ const AXE_PARTS: PropPart[] = [
   },
   {
     size: [0.2, 0.42, 0.1],
-    position: [-0.2, 1.27, 0],
-    rotation: [0, 0, -0.16],
-    material: material_metal_world,
-  },
-  {
-    size: [0.16, 0.16, 0.16],
-    position: [0.04, 1.12, 0],
+    position: [-0.2, 1.3, 0],
     rotation: [0, 0, -0.16],
     material: material_metal_world,
   },
@@ -663,6 +661,11 @@ const STAIR_GATE_PARTS: PropPart[] = [
     rotation: [0, 0, -0.25] as Vec3,
     material: material_metal_world,
   })),
+  {
+    size: [3.2, 2.3, 0.08],
+    position: [0, 1.15, 0],
+    material: transparentMaterial,
+  },
 ];
 
 const MIRROR_PARTS: PropPart[] = [
@@ -743,6 +746,37 @@ export const KeyM220 = ({ data }: { data: ItemsList }) => {
     </Item>
   );
 };
+export const KeyM221 = ({ data }: { data: ItemsList }) => {
+  return (
+    <Item data={data} gravity={true} grabbable={true}>
+      <ProceduralProp parts={KEY_PARTS} data={data} />
+    </Item>
+  );
+};
+
+export const KeyNurse = ({ data }: { data: ItemsList }) => {
+  return (
+    <Item data={data} gravity={true} grabbable={true}>
+      <ProceduralProp parts={KEY_PARTS} data={data} />
+    </Item>
+  );
+};
+
+export const KeyCloset = ({ data }: { data: ItemsList }) => {
+  return (
+    <Item data={data} gravity={true} grabbable={true}>
+      <ProceduralProp parts={KEY_PARTS} data={data} />
+    </Item>
+  );
+};
+
+export const KeyGate = ({ data }: { data: ItemsList }) => {
+  return (
+    <Item data={data} gravity={true} grabbable={true}>
+      <ProceduralProp parts={KEY_PARTS} data={data} />
+    </Item>
+  );
+};
 
 export const Box = ({ data }: { data: ItemsList }) => {
   return (
@@ -813,13 +847,13 @@ export const Safe = ({ data }: { data: ItemsList }) => {
   useEffect(() => {
     if (!keypadRef.current) return;
     keypadRef.current.userData.clickRoot = true;
-    keypadRef.current.userData.name = 'safe';
+    keypadRef.current.userData.name = "safe";
     keypadRef.current.userData.uuid = uuidRef.current;
-    keypadRef.current.userData.type = 'item';
+    keypadRef.current.userData.type = "item";
   }, []);
 
   useEffect(() => {
-    const unsub = eventBus.on('itemClicked', (payload) => {
+    const unsub = eventBus.on("itemClicked", (payload) => {
       if (payload?.uuid === uuidRef.current) {
         handleSafeUse();
       }
@@ -853,12 +887,12 @@ export const Safe = ({ data }: { data: ItemsList }) => {
         <group ref={doorRef} position={[-0.51, 0.18, 0.54]}>
           <mesh position={[0.51, 0.52, 0]}>
             <boxGeometry args={[1.02, 1.05, 0.08]} />
-            <meshStandardMaterial color="#151515" roughness={0.7} />
+            <meshStandardMaterial color='#151515' roughness={0.7} />
           </mesh>
           <mesh position={[0.14, 0.52, 0.075]}>
             <boxGeometry args={[0.12, 0.12, 0.12]} />
             <meshStandardMaterial
-              color="#44494d"
+              color='#44494d'
               metalness={0.8}
               roughness={0.25}
             />
@@ -866,16 +900,16 @@ export const Safe = ({ data }: { data: ItemsList }) => {
           <group ref={keypadRef} position={[0.72, 0.66, 0.08]}>
             <mesh>
               <boxGeometry args={[0.36, 0.28, 0.08]} />
-              <meshStandardMaterial color={'#161616'} />
+              <meshStandardMaterial color={"#161616"} />
             </mesh>
             <Text
               position={[0, 0, 0.055]}
               fontSize={0.075}
-              color="#d9f5d6"
-              anchorX="center"
-              anchorY="middle"
+              color='#d9f5d6'
+              anchorX='center'
+              anchorY='middle'
             >
-              {open ? 'OPEN' : 'CODE'}
+              {open ? "OPEN" : "CODE"}
             </Text>
           </group>
         </group>
@@ -919,46 +953,161 @@ export const Boards = ({ data }: { data: ItemsList }) => {
   const uuidRef = useRef(crypto.randomUUID());
   const [broken, setBroken] = useState(false);
   const { Inventory, currentSlot } = useInventory();
+  const { addInteraction } = usePlayerData();
 
   useEffect(() => {
     if (!boardRef.current) return;
     boardRef.current.userData.clickRoot = true;
-    boardRef.current.userData.name = 'boards';
+    boardRef.current.userData.name = "boards";
     boardRef.current.userData.uuid = uuidRef.current;
-    boardRef.current.userData.type = 'item';
+    boardRef.current.userData.type = "item";
   }, []);
 
   useEffect(() => {
-    const unsub = eventBus.on('itemClicked', (payload) => {
+    const unsub = eventBus.on("itemClicked", (payload) => {
       if (payload?.uuid !== uuidRef.current) return;
-      if (Inventory[currentSlot] === 'axe') {
+      if (broken) return;
+
+      if (Inventory[currentSlot] === "axe") {
         setBroken(true);
+        return;
       }
+
+      addInteraction("I need an ~Axe~ to clear these boards.");
     });
 
     return unsub;
-  }, [Inventory, currentSlot]);
+  }, [Inventory, currentSlot, addInteraction, broken]);
+
+  const rotation: [number, number, number] = [
+    THREE.MathUtils.degToRad(data.rotation[0]),
+    THREE.MathUtils.degToRad(data.rotation[1]),
+    THREE.MathUtils.degToRad(data.rotation[2]),
+  ];
+
+  const boardContent = (
+    <group ref={boardRef}>
+      <ProceduralProp
+        parts={broken ? BROKEN_BOARDS_PARTS : BOARDS_PARTS}
+        data={{
+          ...data,
+          noColliders: broken,
+        }}
+      />
+    </group>
+  );
+
+  if (broken) {
+    return (
+      <group position={data.position} rotation={rotation}>
+        {boardContent}
+      </group>
+    );
+  }
 
   return (
+    <RigidBody
+      type='fixed'
+      colliders={false}
+      position={data.position}
+      rotation={rotation}
+    >
+      {boardContent}
+    </RigidBody>
+  );
+};
+export const StairGate = ({ data }: { data: ItemsList }) => {
+  const gateRef = useRef<THREE.Group>(null);
+  const uuidRef = useRef(crypto.randomUUID());
+  const [broken, setBroken] = useState(false);
+  const { Inventory, currentSlot } = useInventory();
+  const { addInteraction } = usePlayerData();
+
+  useEffect(() => {
+    if (!gateRef.current) return;
+    gateRef.current.userData.clickRoot = true;
+    gateRef.current.userData.name = "stairgate";
+    gateRef.current.userData.uuid = uuidRef.current;
+    gateRef.current.userData.type = "item";
+  }, []);
+  useEffect(() => {
+    const unsub = eventBus.on("itemClicked", (payload) => {
+      if (payload?.uuid !== uuidRef.current) return;
+      addInteraction(
+        "This gate doesn't have a lock, maybe the other gate does?",
+      );
+    });
+
+    return unsub;
+  }, []);
+  return (
     <Item data={data} gravity={false} grabbable={false}>
-      <group ref={boardRef}>
-        <ProceduralProp
-          parts={broken ? BROKEN_BOARDS_PARTS : BOARDS_PARTS}
-          data={data}
-        />
+      <group ref={gateRef}>
+        <ProceduralProp parts={STAIR_GATE_PARTS} data={data} />
       </group>
     </Item>
   );
 };
 
-export const StairGate = ({ data }: { data: ItemsList }) => (
-  <Item data={data} gravity={false} grabbable={false}>
-    <ProceduralProp parts={STAIR_GATE_PARTS} data={data} />
-  </Item>
-);
+export const StairGateInteractable = ({ data }: { data: ItemsList }) => {
+  const gateRef = useRef<THREE.Group>(null);
+  const uuidRef = useRef(crypto.randomUUID());
+  const [broken, setBroken] = useState(false);
+  const { Inventory, currentSlot } = useInventory();
+  const { addInteraction } = usePlayerData();
+
+  useEffect(() => {
+    if (!gateRef.current) return;
+    gateRef.current.userData.clickRoot = true;
+    gateRef.current.userData.name = "stairgate";
+    gateRef.current.userData.uuid = uuidRef.current;
+    gateRef.current.userData.type = "item";
+  }, []);
+  useEffect(() => {
+    const unsub = eventBus.on("itemClicked", (payload) => {
+      if (payload?.uuid !== uuidRef.current) return;
+      if (broken) return;
+
+      if (Inventory[currentSlot] === "keygate") {
+        setBroken(true);
+        return;
+      }
+
+      addInteraction("I need a ~Gate Key~ to open this gate.");
+    });
+
+    return unsub;
+  }, [broken, Inventory, currentSlot, addInteraction]);
+  if (broken) {
+    return null;
+  }
+  return (
+    <Item data={data} gravity={false} grabbable={false}>
+      <group ref={gateRef}>
+        <ProceduralProp parts={STAIR_GATE_PARTS} data={data} />
+      </group>
+    </Item>
+  );
+};
 
 export const FacilityMirror = ({ data }: { data: ItemsList }) => (
   <Item data={data} gravity={false} grabbable={false}>
+    <ProceduralProp parts={MIRROR_PARTS} data={data} />
+  </Item>
+);
+
+export const FacilityMirrorWithText = ({ data }: { data: ItemsList }) => (
+  <Item data={data} gravity={false} grabbable={false}>
+    <Text
+      position={[0, 1.55, 0.07]}
+      fontSize={0.13}
+      color='#d9f5d6'
+      anchorX='center'
+      anchorY='middle'
+      maxWidth={1}
+    >
+      No photography in the bathrooms.
+    </Text>
     <ProceduralProp parts={MIRROR_PARTS} data={data} />
   </Item>
 );
@@ -969,18 +1118,18 @@ function RoomLabel({ data, label }: { data: ItemsList; label: string }) {
       <group>
         <mesh position={[0, 1.6, 0]}>
           <boxGeometry args={[0.78, 0.34, 0.05]} />
-          <meshStandardMaterial color="#25282b" roughness={0.65} />
+          <meshStandardMaterial color='#25282b' roughness={0.65} />
         </mesh>
         <mesh position={[0, 1.6, 0.031]}>
           <boxGeometry args={[0.66, 0.23, 0.02]} />
-          <meshStandardMaterial color="#d5d0bd" roughness={0.5} />
+          <meshStandardMaterial color='#d5d0bd' roughness={0.5} />
         </mesh>
         <Text
           position={[0, 1.6, 0.05]}
           fontSize={0.16}
-          color="#101010"
-          anchorX="center"
-          anchorY="middle"
+          color='#101010'
+          anchorX='center'
+          anchorY='middle'
         >
           {label}
         </Text>
@@ -990,72 +1139,134 @@ function RoomLabel({ data, label }: { data: ItemsList; label: string }) {
 }
 
 export const RoomLabelM220 = ({ data }: { data: ItemsList }) => (
-  <RoomLabel data={data} label="M220" />
+  <RoomLabel data={data} label='M220' />
 );
 export const RoomLabelM221 = ({ data }: { data: ItemsList }) => (
-  <RoomLabel data={data} label="M221" />
+  <RoomLabel data={data} label='M221' />
 );
 export const RoomLabelM222 = ({ data }: { data: ItemsList }) => (
-  <RoomLabel data={data} label="M222" />
+  <RoomLabel data={data} label='M222' />
 );
 export const RoomLabelM223 = ({ data }: { data: ItemsList }) => (
-  <RoomLabel data={data} label="M223" />
+  <RoomLabel data={data} label='M223' />
 );
 
-export const itemById: Record<string, ComponentType<{ data: ItemsList }>> = {
-  brokenwall: BrokenWall,
-  safe: Safe,
-  metalshelf: MetalShelf,
-  sink: Sink,
-  mirror: FacilityMirror,
-  stall: Stall,
-  toilet: Toilet,
-  hammer: Hammer,
-  axe: Axe,
-  boards: Boards,
-  stairgate: StairGate,
-  roomlabelm220: RoomLabelM220,
-  roomlabelm221: RoomLabelM221,
-  roomlabelm222: RoomLabelM222,
-  roomlabelm223: RoomLabelM223,
-  wheelchair: Wheelchair,
-  stair: Stair,
-  key: Key,
-  keym222: KeyM222,
-  box: Box,
-  box2: Box2,
-  book: Book,
-  shelf: Shelf,
-  bed: Bed,
-  table: Table,
+export const EscapeTrigger = ({ data }: { data: ItemsList }) => {
+  const triggeredRef = useRef(false);
+  const { pos, startEnding, endingActive, inMenu, introActive, gameSessionId } =
+    usePlayerData();
+
+  useEffect(() => {
+    triggeredRef.current = false;
+  }, [gameSessionId]);
+
+  useFrame(() => {
+    if (triggeredRef.current || endingActive || inMenu || introActive) return;
+
+    const [playerX, playerY, playerZ] = pos.current;
+    const [triggerX, triggerY, triggerZ] = data.position;
+    const insideX = Math.abs(playerX - triggerX) <= 1.35;
+    const insideY = playerY >= triggerY - 0.25 && playerY <= triggerY + 3;
+    const insideZ = Math.abs(playerZ - triggerZ) <= 1.35;
+
+    if (insideX && insideY && insideZ) {
+      triggeredRef.current = true;
+      console.log("Escape trigger activated");
+      console.log(
+        insideX,
+        insideY,
+        insideZ,
+        playerX,
+        playerY,
+        playerZ,
+        triggerX,
+        triggerY,
+        triggerZ,
+      );
+      startEnding();
+    }
+  });
+
+  return (
+    <group position={data.position}>
+      <mesh visible={false}>
+        <boxGeometry args={[2.7, 3, 2.7]} />
+        <meshBasicMaterial transparent opacity={0} />
+      </mesh>
+    </group>
+  );
 };
 
-export const nameById: Record<string, string> = {
-  brokenwall: 'Broken Wall',
-  safe: 'Safe',
-  metalshelf: 'Metal Shelf',
-  sink: 'Sink',
-  mirror: 'Mirror',
-  stall: 'Bathroom Stall',
-  toilet: 'Toilet',
-  hammer: 'Hammer',
-  axe: 'Axe',
-  boards: 'Boards',
-  stairgate: 'Stair Gate',
-  roomlabelm220: 'Room Label M220',
-  roomlabelm221: 'Room Label M221',
-  roomlabelm222: 'Room Label M222',
-  roomlabelm223: 'Room Label M223',
-  wheelchair: 'Wheelchair',
-  stair: 'Stair',
-  key: 'Key',
-  keym222: 'Key [M222]',
-  box: 'Box',
-  box2: 'Box2',
-  book: 'Green Book',
-  shelf: 'Shelf',
-  bed: 'Bed',
-  table: 'Table',
-};
+replaceItemCatalog({
+  itemById: {
+    brokenwall: BrokenWall,
+    safe: Safe,
+    metalshelf: MetalShelf,
+    sink: Sink,
+    mirror: FacilityMirror,
+    mirrortext: FacilityMirrorWithText,
+    stall: Stall,
+    toilet: Toilet,
+    hammer: Hammer,
+    axe: Axe,
+    boards: Boards,
+    stairgate: StairGate,
+    stairgateinteractable: StairGateInteractable,
+    roomlabelm220: RoomLabelM220,
+    roomlabelm221: RoomLabelM221,
+    roomlabelm222: RoomLabelM222,
+    roomlabelm223: RoomLabelM223,
+    keynurse: KeyNurse,
+    keycloset: KeyCloset,
+    wheelchair: Wheelchair,
+    stair: Stair,
+    key: Key,
+    keym222: KeyM222,
+    keym220: KeyM220,
+    keym221: KeyM221,
+    keygate: KeyGate,
+    box: Box,
+    box2: Box2,
+    book: Book,
+    shelf: Shelf,
+    bed: Bed,
+    table: Table,
+    escapetrigger: EscapeTrigger,
+  },
+  nameById: {
+    brokenwall: "Broken Wall",
+    safe: "Safe",
+    metalshelf: "Metal Shelf",
+    sink: "Sink",
+    mirror: "Mirror",
+    mirrortext: "Mirror with Text",
+    stall: "Bathroom Stall",
+    toilet: "Toilet",
+    hammer: "Hammer",
+    axe: "Axe",
+    boards: "Boards",
+    stairgateinteractable: "Stair Gate (Interactable)",
+    stairgate: "Stair Gate",
+    roomlabelm220: "Room Label M220",
+    roomlabelm221: "Room Label M221",
+    roomlabelm222: "Room Label M222",
+    roomlabelm223: "Room Label M223",
+    wheelchair: "Wheelchair",
+    stair: "Stair",
+    key: "Key",
+    keym222: "Room Key [M222]",
+    keym221: "Room Key [M221]",
+    keym220: "Room Key [M220]",
+    keynurse: "Nurse's Key",
+    keycloset: "Janitorial Key",
+    keygate: "Gate Key",
 
-export const getItemComponent = (id: string) => itemById[id];
+    box: "Box",
+    box2: "Box2",
+    book: "Green Book",
+    shelf: "Shelf",
+    bed: "Bed",
+    table: "Table",
+    escapetrigger: "Escape Trigger",
+  },
+});

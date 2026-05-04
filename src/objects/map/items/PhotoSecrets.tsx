@@ -1,22 +1,22 @@
-import { Text } from '@react-three/drei';
-import { usePlayerData } from '../../../context/PlayerData';
+import { Text } from "@react-three/drei";
+import { usePlayerData } from "../../../context/PlayerData";
 
 export default function PhotoSecrets() {
-  const { revealingPhotoSecrets } = usePlayerData();
-
-  if (!revealingPhotoSecrets) return null;
+  const { revealingPhotoSecrets, safeCode } = usePlayerData();
 
   return (
     <group>
       <Text
-        position={[4.2, 2.2, 1.2]}
-        rotation={[0, Math.PI / 2, 0]}
-        fontSize={0.45}
-        color="#f5f2e8"
-        anchorX="center"
-        anchorY="middle"
+        position={[-8.25, 2, -17.74]}
+        rotation={[0, 0, 0.1]}
+        fontSize={0.28}
+        color='#b15353'
+        anchorX='center'
+        anchorY='middle'
+        fillOpacity={revealingPhotoSecrets ? 0.5 : 0}
+        outlineOpacity={0}
       >
-        9115
+        {safeCode}
       </Text>
     </group>
   );

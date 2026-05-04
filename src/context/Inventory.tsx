@@ -14,6 +14,7 @@ interface InventoryContextType {
   setCurrentSlot: (slot: number) => void;
   dropCurrentSlot: (pos: [number, number, number]) => void;
   clearCurrentSlot: () => void;
+  resetInventory: () => void;
 }
 
 
@@ -73,6 +74,11 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({
     );
   };
 
+  const resetInventory = React.useCallback(() => {
+    setInventory([]);
+    setCurrentSlot(0);
+  }, []);
+
   const value: InventoryContextType = {
     AddToInventory,
     Inventory,
@@ -81,6 +87,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({
     setCurrentSlot,
     dropCurrentSlot,
     clearCurrentSlot,
+    resetInventory,
   };
 
   return (

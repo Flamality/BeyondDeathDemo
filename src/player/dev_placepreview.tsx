@@ -6,7 +6,10 @@ import * as THREE from 'three';
 import { useConsole } from '../context/Console';
 import { useItems } from '../context/Items';
 import { useMapEditor, type OpeningKind } from '../context/MapEditor';
-import { getItemComponent, itemById } from '../objects/map/items/Props';
+import {
+  getItemComponent,
+  useItemIds,
+} from '../objects/map/items/PropCatalog';
 
 type DevMode = 'prop' | 'wall' | 'door' | 'window' | 'broken';
 
@@ -57,7 +60,7 @@ export default function DevPlacePreview() {
   const { addWall, addOpeningWall, clearCustomWalls } = useMapEditor();
   const { consoleLog } = useConsole();
 
-  const itemIds = useMemo(() => Object.keys(itemById), []);
+  const itemIds = useItemIds();
   const placementRaycaster = useMemo(() => new THREE.Raycaster(), []);
   const mouseNdc = useRef(new THREE.Vector2(0, 0));
   const [enabled, setEnabled] = useState(false);

@@ -2,7 +2,7 @@ import { Container as Div, Fullscreen, Text } from '@react-three/uikit'
 import React, { useEffect, useState } from 'react'
 import { useItems } from '../context/Items'
 
-export default function CameraOverlay() {
+export default function CameraOverlay({ opacity = 1 }: { opacity?: number }) {
   const [time, setTime] = React.useState<string>('[ Error ]')
   const [recordDotOpacity, setRecordDotOpacity] = React.useState<number>(0)
   const { currentHit } = useItems();
@@ -61,6 +61,7 @@ export default function CameraOverlay() {
       depthTest={false}
       pointerEvents="none"
       zIndex={99}
+      opacity={opacity}
       {...{'*': { userSelect: 'none' }} as any} 
     >
       <Div

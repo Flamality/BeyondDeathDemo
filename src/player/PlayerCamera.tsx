@@ -26,15 +26,20 @@ export default function PlayerCamera({
 
   const targetYaw = useRef(0);
   const targetPitch = useRef(0);
+  const wasPaused = useRef(paused);
 
-  useEffect(() => {
-    const canvas = gl.domElement;
-
+  const syncLookToCamera = () => {
     const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
     yaw.current = euler.y;
     pitch.current = euler.x;
     targetYaw.current = euler.y;
     targetPitch.current = euler.x;
+  };
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+
+    syncLookToCamera();
 
     const lockPointer = async () => {
       if (!enabled || paused) return;
@@ -99,6 +104,11 @@ export default function PlayerCamera({
   useFrame((_, delta) => {
     if (!enabled || paused) return;
 
+    if (wasPaused.current) {
+      syncLookToCamera();
+    }
+    wasPaused.current = false;
+
     const smooth = Math.min(1, delta * 20);
 
     yaw.current = THREE.MathUtils.lerp(yaw.current, targetYaw.current, smooth);
@@ -116,6 +126,12 @@ export default function PlayerCamera({
     cam.fov = THREE.MathUtils.lerp(cam.fov, targetFov.current, delta * 10);
     cam.updateProjectionMatrix();
   });
+
+  useEffect(() => {
+    if (paused) {
+      wasPaused.current = true;
+    }
+  }, [paused]);
 
   return null;
 }

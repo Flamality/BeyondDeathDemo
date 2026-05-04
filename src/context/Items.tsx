@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { useConsole } from './Console';
 
-import item_map from "../objects/map/items/item_map.json";
-
 import * as THREE from 'three';
 
 interface ItemsContextType {
@@ -19,7 +17,8 @@ interface ItemsContextType {
     updateMap: () => void;
 }
 
-import * as Props from '../objects/map/items/Props';
+import { getItemComponent } from '../objects/map/items/PropCatalog';
+import { useDefaultItemMap } from '../objects/map/items/ItemMapCatalog';
 import { usePlayerData } from './PlayerData';
 
 import { eventBus } from './Bus';
@@ -39,6 +38,7 @@ export const ItemsProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const [worldItems, setWorldItems] = React.useState<THREE.Object3D[]>([]);
     const [Items, setItems] = React.useState<ItemsList[]>([]);
     const [rawItems, setRawItems] = React.useState<any[]>([]);
+    const defaultItemMap = useDefaultItemMap();
     const {paused} = usePlayerData();
     const currentHit = useRef<THREE.Object3D | null>(null);
     const {consoleLog} = useConsole();
@@ -88,7 +88,7 @@ export const ItemsProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
 
     const addItemToMap = (id: string, position: [number, number, number], rotation: [number, number, number]) => {
-        const prop = Props.getItemComponent(id); 
+        const prop = getItemComponent(id); 
         if (!prop) {
             consoleLog(`Item ${id} does not exist.`);
             return;
@@ -113,8 +113,8 @@ export const ItemsProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
 
    useEffect(() => {
-        setRawItems(item_map);
-   },[item_map])
+        setRawItems(defaultItemMap);
+   },[defaultItemMap])
     
     useEffect(() => {
         debug_clearmapofitems();

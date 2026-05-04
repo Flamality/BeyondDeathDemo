@@ -9,6 +9,11 @@ import React, {
 import { useConsole } from "./Console";
 // import { useConsole } from './Console';
 
+interface interactionLogEntry {
+  message: string;
+  timestamp: number;
+}
+
 interface PlayerDataContextType {
   pos: RefObject<[number, number, number]>;
   rot: RefObject<[number, number, number]>;
@@ -28,6 +33,8 @@ interface PlayerDataContextType {
   setRevealingPhotoSecrets: (revealing: boolean) => void;
   gameSessionId: number;
   startGame: () => void;
+  introActive: boolean;
+  setIntroActive: (introActive: boolean) => void;
   safeKeypadOpen: boolean;
   safeKeypadCode: string;
   safeKeypadError: boolean;
@@ -35,8 +42,14 @@ interface PlayerDataContextType {
   closeSafeKeypad: () => void;
   pressSafeKey: (key: string) => void;
   submitSafeKeypad: () => void;
+  endingActive: boolean;
+  startEnding: () => void;
+  finishEnding: () => void;
   menuPanel: "settings" | "credits" | null;
   setMenuPanel: (panel: "settings" | "credits" | null) => void;
+  interactionLog: interactionLogEntry[];
+  addInteraction: (interaction: string) => void;
+  safeCode: string;
 }
 
 const PlayerDataContext = createContext<PlayerDataContextType | undefined>(
@@ -51,26 +64,59 @@ export const PlayerDataProvider: React.FC<{ children: ReactNode }> = ({
   const [paused, setPaused] = React.useState(false);
   const [inMenu, setInMenu] = React.useState(true);
   const [gameSessionId, setGameSessionId] = React.useState(0);
+  const [introActive, setIntroActive] = React.useState(false);
   const character = React.useRef<any>(null);
   const cameraController = React.useRef<any>(null);
   const [takingImage, setTakingImage] = React.useState<boolean>(false);
   const [capturedImage, setCapturedImage] = React.useState<string | null>(null);
   const [photoJournal, setPhotoJournal] = React.useState<string[]>([]);
-  const [revealingPhotoSecrets, setRevealingPhotoSecrets] = React.useState(false);
+  const [revealingPhotoSecrets, setRevealingPhotoSecrets] =
+    React.useState(false);
   const [safeKeypadOpen, setSafeKeypadOpen] = React.useState(false);
   const [safeKeypadCode, setSafeKeypadCode] = React.useState("");
   const [safeKeypadError, setSafeKeypadError] = React.useState(false);
+  const [endingActive, setEndingActive] = React.useState(false);
   const safeUnlockRef = React.useRef<(() => void) | null>(null);
-  const [menuPanel, setMenuPanel] = React.useState<"settings" | "credits" | null>(null);
+  const [menuPanel, setMenuPanel] = React.useState<
+    "settings" | "credits" | null
+  >(null);
+  const [interactionLog, setInteractionLog] = React.useState<
+    interactionLogEntry[]
+  >([]);
+  const [safeCode, setSafeCode] = React.useState("9115");
+
+  useEffect(() => {
+    const newSafeCode = Math.floor(1000 + Math.random() * 9000).toString();
+    setSafeCode(newSafeCode);
+  }, [inMenu]);
+
+  const addInteraction = React.useCallback((interaction: string) => {
+    setInteractionLog((prev) => [
+      ...prev,
+      { message: interaction, timestamp: Date.now() },
+    ]);
+  }, []);
 
   const addPhotoToJournal = React.useCallback((image: string) => {
     setPhotoJournal((prev) => [image, ...prev]);
   }, []);
 
   const startGame = React.useCallback(() => {
+    setEndingActive(false);
     setPaused(false);
     setInMenu(false);
+    setIntroActive(true);
     setMenuPanel(null);
+    setTakingImage(false);
+    setCapturedImage(null);
+    setPhotoJournal([]);
+    setRevealingPhotoSecrets(false);
+    setSafeKeypadOpen(false);
+    setSafeKeypadCode("");
+    setSafeKeypadError(false);
+    setSafeCode(Math.floor(1000 + Math.random() * 9000).toString());
+    setInteractionLog([]);
+    safeUnlockRef.current = null;
     setGameSessionId((prev) => prev + 1);
   }, []);
 
@@ -106,7 +152,7 @@ export const PlayerDataProvider: React.FC<{ children: ReactNode }> = ({
 
   const submitSafeKeypad = React.useCallback(() => {
     setSafeKeypadCode((currentCode) => {
-      if (currentCode === "9115") {
+      if (currentCode === safeCode) {
         safeUnlockRef.current?.();
         closeSafeKeypad();
         return "";
@@ -115,7 +161,23 @@ export const PlayerDataProvider: React.FC<{ children: ReactNode }> = ({
       setSafeKeypadError(true);
       return "";
     });
-  }, [closeSafeKeypad]);
+  }, [closeSafeKeypad, safeCode]);
+
+  const startEnding = React.useCallback(() => {
+    setEndingActive(true);
+    setPaused(true);
+    setSafeKeypadOpen(false);
+    setSafeKeypadCode("");
+    setSafeKeypadError(false);
+    setMenuPanel(null);
+    if (document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+  }, []);
+
+  const finishEnding = React.useCallback(() => {
+    setEndingActive(false);
+  }, []);
 
   const { consoleLog } = useConsole();
   useEffect(() => {
@@ -141,6 +203,8 @@ export const PlayerDataProvider: React.FC<{ children: ReactNode }> = ({
     setRevealingPhotoSecrets,
     gameSessionId,
     startGame,
+    introActive,
+    setIntroActive,
     safeKeypadOpen,
     safeKeypadCode,
     safeKeypadError,
@@ -148,8 +212,14 @@ export const PlayerDataProvider: React.FC<{ children: ReactNode }> = ({
     closeSafeKeypad,
     pressSafeKey,
     submitSafeKeypad,
+    endingActive,
+    startEnding,
+    finishEnding,
     menuPanel,
     setMenuPanel,
+    interactionLog,
+    addInteraction,
+    safeCode,
   };
 
   return (

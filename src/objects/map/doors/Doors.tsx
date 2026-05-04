@@ -1,19 +1,19 @@
-import React from 'react';
-import { Box } from '@react-three/drei';
-import { RigidBody } from '@react-three/rapier';
-import Door from './Door';
+import React from "react";
+import { Box } from "@react-three/drei";
+import { RigidBody } from "@react-three/rapier";
+import Door from "./Door";
 import {
   useMapEditor,
   type OpeningKind,
   type WallDef,
   type WallOpening,
-} from '../../../context/MapEditor';
+} from "../../../context/MapEditor";
 import {
   material_metal_world,
   material_plaster_world,
   material_wood_world,
-} from '../../../materials/Textures';
-import { baseWalls } from '../walls/WallMap';
+} from "../../../materials/Textures";
+import { useBaseWalls } from "../walls/WallCatalog";
 
 function getOpeningTransform(wall: WallDef, opening: WallOpening) {
   const width = wall.width ?? 0.4;
@@ -51,7 +51,7 @@ function WindowOpening({
 
   return (
     <group position={position} rotation={[0, (rotation * Math.PI) / 180, 0]}>
-      <RigidBody type="fixed" colliders="cuboid">
+      <RigidBody type='fixed' colliders='cuboid'>
         <Box
           args={[opening.width, sill, 0.4]}
           position={[0, sill / 2, 0]}
@@ -88,7 +88,7 @@ function WindowOpening({
         position={[0, sill + height / 2, 0]}
       >
         <meshStandardMaterial
-          color="#8bc7ff"
+          color='#8bc7ff'
           transparent
           opacity={0.22}
           roughness={0.15}
@@ -138,7 +138,7 @@ function OpeningFixture({
   const { position, rotation } = getOpeningTransform(wall, opening);
   const kind: OpeningKind = opening.kind;
 
-  if (kind === 'door') {
+  if (kind === "door") {
     return (
       <Door
         position={position}
@@ -150,7 +150,7 @@ function OpeningFixture({
     );
   }
 
-  if (kind === 'window') {
+  if (kind === "window") {
     return (
       <WindowOpening
         position={position}
@@ -170,6 +170,7 @@ function OpeningFixture({
 }
 
 const Doors: React.FC = () => {
+  const baseWalls = useBaseWalls();
   const { customWalls } = useMapEditor();
   const openingWalls = [...baseWalls, ...customWalls].filter(
     (wall) => wall.openings?.length,
@@ -178,21 +179,54 @@ const Doors: React.FC = () => {
   return (
     <>
       {/* <Door position={[1, 0, 3]} locked={true} itemRequired='Box2' takeItem={true} /> */}
+      {/* FIRST DOOR */}
       <Door position={[0, 0, 6.5]} rotation={90} />
 
-      <Door position={[0, 0, -3.5]} rotation={90} locked={true} />
+      {/* M220 */}
+      <Door
+        position={[0, 0, -3.5]}
+        rotation={90}
+        locked={true}
+        itemRequired='keym220'
+        takeItem={true}
+      />
 
+      {/* M222 */}
       <Door
         position={[-4, 0, 6.5]}
         rotation={-90}
         locked={true}
         takeItem={true}
-        itemRequired="keym222"
+        itemRequired='keym222'
       />
 
-      <Door position={[-4, 0, -3.5]} rotation={-90} />
+      {/* M221 (BATHROOM ENTERANCE ROOM) */}
+      <Door
+        position={[-4, 0, -3.5]}
+        rotation={-90}
+        locked={true}
+        itemRequired='keym221'
+        takeItem={true}
+      />
 
-      <Door position={[0, 0, -13]} rotation={90} />
+      {/* CLOSET */}
+      <Door
+        position={[0, 0, -13]}
+        rotation={90}
+        locked={true}
+        itemRequired='keycloset'
+        takeItem={true}
+      />
+
+      {/* NURSE STUFF */}
+      <Door position={[0, 0, -25]} rotation={-90} locked={true} />
+      <Door
+        position={[0, 0, -23]}
+        rotation={90}
+        locked={true}
+        itemRequired='keynurse'
+        takeItem={true}
+      />
 
       {openingWalls.flatMap((wall) =>
         (wall.openings ?? []).map((opening) => (
