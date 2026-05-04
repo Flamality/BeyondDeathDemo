@@ -40,7 +40,7 @@ function AppShell() {
 
   return (
     <>
-      <Debug />
+      {/* <Debug /> */}
       <Console />
       {!inMenu && <Engine key={gameSessionId} onReady={handleEngineReady} />}
       {loading && <LoadingScreen />}
@@ -50,9 +50,11 @@ function AppShell() {
       <CreditsMenu />
       <SafeKeypad />
       <EndingOverlay />
-      {!loading && introActive && <div key={gameSessionId} className="intro-fade" />}
+      {!loading && introActive && (
+        <div key={gameSessionId} className='intro-fade' />
+      )}
       {!inMenu && !introActive && (
-        <div className="gameplay-ui-fade">
+        <div className='gameplay-ui-fade'>
           <PhotoHud />
           <InteractionOverlay />
         </div>
@@ -76,9 +78,9 @@ function App() {
                 </InventoryProvider>
               </ItemsProvider>
             </SettingsProvider>
-            </KeybindsProvider>
-          </PlayerDataProvider>
-        </ConsoleProvider>
+          </KeybindsProvider>
+        </PlayerDataProvider>
+      </ConsoleProvider>
     </>
   );
 }

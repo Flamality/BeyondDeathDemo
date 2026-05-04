@@ -59,10 +59,10 @@ export default function Engine({ onReady }: { onReady?: () => void }) {
           <fogExp2 attach='fog' args={["#000000", 0.1]} />
           <color attach='background' args={["#0f0b0b"]} />
           <Suspense fallback={null}>
-            {showDevTools && <Perf showGraph={false} position='top-right' />}
+            {/* {showDevTools && <Perf showGraph={false} position='top-right' />} */}
             <AudioProvider>
               <Physics gravity={[0, -9.81, 0]} paused={paused} debug={false}>
-                <Dev_placepreview />
+                {/* <Dev_placepreview /> */}
                 <WallMap />
                 <Ceiling />
                 <Doors />
