@@ -1,22 +1,30 @@
-import { useState } from "react";
-import { usePlayerData } from "../context/PlayerData";
-import { useSettings, type KeybindAction, type QualityLevel } from "../context/Settings";
+import { useState } from 'react';
+import { usePlayerData } from '../context/PlayerData';
+import {
+  useSettings,
+  type KeybindAction,
+  type QualityLevel,
+} from '../context/Settings';
 
 const actionLabels: Record<KeybindAction, string> = {
-  forward: "Move Forward",
-  backward: "Move Backward",
-  left: "Move Left",
-  right: "Move Right",
-  jump: "Jump",
-  crouch: "Crouch",
-  sprint: "Sprint",
-  photo: "Take Photo",
+  forward: 'Move Forward',
+  backward: 'Move Backward',
+  left: 'Move Left',
+  right: 'Move Right',
+  jump: 'Jump',
+  crouch: 'Crouch',
+  sprint: 'Sprint',
+  photo: 'Take Photo',
 };
 
-const qualityOptions: QualityLevel[] = ["low", "medium", "high"];
+const qualityOptions: QualityLevel[] = ['low', 'medium', 'high'];
 
 function keyName(code: string) {
-  return code.replace("Key", "").replace("Digit", "").replace("ControlLeft", "Left Ctrl").replace("ShiftLeft", "Left Shift");
+  return code
+    .replace('Key', '')
+    .replace('Digit', '')
+    .replace('ControlLeft', 'Left Ctrl')
+    .replace('ShiftLeft', 'Left Shift');
 }
 
 export default function SettingsMenu() {
@@ -29,10 +37,12 @@ export default function SettingsMenu() {
     keybinds,
     setKeybind,
     resetSettings,
+    volume,
+    setVolume,
   } = useSettings();
   const [listeningFor, setListeningFor] = useState<KeybindAction | null>(null);
 
-  if (menuPanel !== "settings") return null;
+  if (menuPanel !== 'settings') return null;
 
   const captureKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!listeningFor) return;
@@ -43,7 +53,11 @@ export default function SettingsMenu() {
   };
 
   return (
-    <div className="menu-panel viewfinder-menu" tabIndex={-1} onKeyDown={captureKey}>
+    <div
+      className="menu-panel viewfinder-menu"
+      tabIndex={-1}
+      onKeyDown={captureKey}
+    >
       <div className="viewfinder-corner top-left" />
       <div className="viewfinder-corner top-right" />
       <div className="viewfinder-corner bottom-left" />
@@ -56,7 +70,9 @@ export default function SettingsMenu() {
       <section className="menu-panel-content">
         <header>
           <h2>Settings</h2>
-          <button type="button" onClick={() => setMenuPanel(null)}>Back</button>
+          <button type="button" onClick={() => setMenuPanel(null)}>
+            Back
+          </button>
         </header>
 
         <div className="settings-row">
@@ -66,7 +82,7 @@ export default function SettingsMenu() {
               <button
                 key={option}
                 type="button"
-                className={quality === option ? "active" : ""}
+                className={quality === option ? 'active' : ''}
                 onClick={() => setQuality(option)}
               >
                 {option}
@@ -86,22 +102,41 @@ export default function SettingsMenu() {
             onChange={(e) => setMouseSensitivity(Number(e.target.value))}
           />
         </label>
+        <label className="settings-row">
+          <span>Volume</span>
+          <input
+            type="range"
+            min="0"
+            max="5"
+            step="0.1"
+            value={volume}
+            onChange={(e) => setVolume(Number(e.target.value))}
+          />
+        </label>
 
         <div className="settings-keybinds">
           {Object.entries(actionLabels).map(([action, label]) => (
             <button
               key={action}
               type="button"
-              className={listeningFor === action ? "listening" : ""}
+              className={listeningFor === action ? 'listening' : ''}
               onClick={() => setListeningFor(action as KeybindAction)}
             >
               <span>{label}</span>
-              <strong>{listeningFor === action ? "Press key..." : keyName(keybinds[action as KeybindAction])}</strong>
+              <strong>
+                {listeningFor === action
+                  ? 'Press key...'
+                  : keyName(keybinds[action as KeybindAction])}
+              </strong>
             </button>
           ))}
         </div>
 
-        <button className="secondary-action" type="button" onClick={resetSettings}>
+        <button
+          className="secondary-action"
+          type="button"
+          onClick={resetSettings}
+        >
           Reset Defaults
         </button>
       </section>

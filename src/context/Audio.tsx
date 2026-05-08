@@ -12,6 +12,7 @@ import door_lock from '../sounds/door_lock.mp3';
 import door_open from '../sounds/door_open.mp3';
 import door_locked from '../sounds/door_locked.mp3';
 import win from '../sounds/win.mp3';
+import { useSettings } from './Settings';
 
 interface AudioContextType {
   loadSound: (id: string, url: string) => Promise<void>;
@@ -26,6 +27,7 @@ export const AudioProvider: React.FC<{ children: ReactNode }> = ({
   const listener = useRef(null as THREE.AudioListener | null);
   const sounds = useRef(new Map<string, THREE.Audio>());
   const { camera } = useThree();
+  const { volume } = useSettings();
 
   useEffect(() => {
     const listnr = new THREE.AudioListener();
@@ -58,7 +60,7 @@ export const AudioProvider: React.FC<{ children: ReactNode }> = ({
         (buffer) => {
           sound.setBuffer(buffer);
           sound.setLoop(false);
-          sound.setVolume(10);
+          sound.setVolume(volume);
           sounds.current.set(id, sound);
           resolve();
         },
@@ -70,6 +72,7 @@ export const AudioProvider: React.FC<{ children: ReactNode }> = ({
 
   const playSound = (id: string) => {
     const sound = sounds.current.get(id);
+    sound?.setVolume(volume);
     if (sound?.isPlaying) {
       sound.stop();
     }
